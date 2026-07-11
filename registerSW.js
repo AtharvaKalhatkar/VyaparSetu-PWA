@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/VyaparSetu-PWA/sw.js', { scope: '/VyaparSetu-PWA/' })})}
