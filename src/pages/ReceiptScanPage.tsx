@@ -1,10 +1,79 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Colors, Spacing, BorderRadius } from '../theme'
 import { s, Field } from '../utils/styles'
 import { DB } from '../utils/storage'
 import { formatCurrency, generateId, todayISO } from '../utils/formatting'
 import { Icons } from '../utils/Icons'
 import { useToast } from '../utils/smooth'
+import type { Item } from '../types'
+
+function preprocessImage(dataUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      const w = img.naturalWidth, h = img.naturalHeight
+      const scale = Math.min(1600 / w, 1600 / h, 1)
+      const cw = Math.round(w * scale), ch = Math.round(h * scale)
+      const canvas = document.createElement('canvas')
+      canvas.width = cw; canvas.height = ch
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0, cw, ch)
+      const imageData = ctx.getImageData(0, 0, cw, ch)
+      const d = imageData.data
+      for (let i = 0; i < d.length; i += 4) {
+        const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]
+        d[i] = d[i + 1] = d[i + 2] = gray > 128 ? Math.min(255, gray * 1.3) : Math.max(0, gray * 0.7)
+      }
+      ctx.putImageData(imageData, 0, 0)
+      resolve(canvas.toDataURL('image/png'))
+    }
+    img.src = dataUrl
+  })
+}
+
+function loadTesseract(): Promise<void> {
+  if ((window as any).Tesseract) return Promise.resolve()
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script')
+    s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'
+    s.onload = () => resolve()
+    s.onerror = () => reject(new Error('Failed to load OCR engine'))
+    document.head.appendChild(s)
+  })
+}
+
+function extractNumbers(text: string): number[] {
+  const tokens: number[] = []
+  for (const m of text.replace(/[₹,]/g, '').match(/\d+\.?\d*/g) || []) {
+    const n = parseFloat(m)
+    if (isFinite(n) && n >= 0) tokens.push(n)
+  }
+  return tokens
+}
+
+function parseReceiptLines(lines: string[], items: Item[]) {
+  const result: { name: string; qty: number; rate: number; amount: number }[] = []
+  const skipWords = new Set(['total', 'subtotal', 'tax', 'gst', 'cgst', 'sgst', 'igst', 'discount', 'invoice', 'bill', 'date', 'gstin', 'address', 'phone', 'particulars', 'description', 'hsn', 'qty', 'quantity', 'rate', 'amount', 'price', 'net', 'grand', 'round', 'off', 'thank', 'you'])
+
+  for (let raw of lines) {
+    raw = raw.trim()
+    if (!raw || raw.length < 4) continue
+    const lower = raw.toLowerCase()
+    if (Array.from(skipWords).some(w => lower.includes(w)) && /^[A-Za-z\s]{2,}$/.test(raw.trim())) continue
+    const nums = extractNumbers(raw)
+    if (nums.length < 2) continue
+    const amount = nums[nums.length - 1]
+    const rate = nums.length >= 3 ? nums[nums.length - 2] : amount
+    const qty = nums.length >= 3 ? nums[nums.length - 3] : 1
+    let name = raw.replace(/[₹\d,.\-*()\/@#xX=:]/g, ' ').replace(/\s+/g, ' ').trim()
+    const tokens = name.split(/\s+/).filter(t => t.length > 1 && !skipWords.has(t.toLowerCase()))
+    if (tokens.length === 0) name = `Item ${result.length + 1}`
+    else name = tokens.join(' ')
+    const matched = items.find(i => i.name.toLowerCase().split(/\s+/).some(t => t.length > 2 && name.toLowerCase().includes(t)))
+    result.push({ name: matched?.name || name, qty: Math.round(qty) || 1, rate: Math.round(rate) || 0, amount: Math.round(amount) || 0 })
+  }
+  return result.slice(0, 50)
+}
 
 export function ReceiptScanPage({ onBack }: { onBack: () => void }) {
   const { toast } = useToast()
@@ -14,10 +83,16 @@ export function ReceiptScanPage({ onBack }: { onBack: () => void }) {
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [photo, setPhoto] = useState<string | null>(null)
   const [mode, setMode] = useState<'scan' | 'enter'>('scan')
+  const [ocrLoading, setOcrLoading] = useState(false)
+  const [ocrError, setOcrError] = useState('')
 
   const [date, setDate] = useState(todayISO())
   const [vendor, setVendor] = useState('')
   const [lines, setLines] = useState<{ name: string; qty: string; rate: string }[]>([])
+
+  useEffect(() => {
+    return () => { stream?.getTracks().forEach(t => t.stop()) }
+  }, [])
 
   const startCamera = async () => {
     try {
@@ -45,6 +120,32 @@ export function ReceiptScanPage({ onBack }: { onBack: () => void }) {
       reader.onload = () => setPhoto(reader.result as string)
       reader.readAsDataURL(file)
     }
+  }
+
+  const runOcrOnPhoto = async () => {
+    if (!photo) return
+    setOcrLoading(true)
+    setOcrError('')
+    try {
+      await loadTesseract()
+      const processed = await preprocessImage(photo)
+      const result = await (window as any).Tesseract.recognize(processed, 'eng+hin', { logger: () => {} })
+      const text = result.data.text
+      if (text.trim().length < 5) {
+        setOcrError('Could not read text. Try a clearer photo.')
+        return
+      }
+      const detected = parseReceiptLines(text.split('\n').map((l: string) => l.trim()).filter(Boolean), DB.items.list().filter(i => i.isActive))
+      if (detected.length > 0) {
+        setLines(detected.map(d => ({ name: d.name, qty: String(d.qty), rate: String(d.rate) })))
+        toast(`Detected ${detected.length} items from receipt!`, 'success')
+      } else {
+        setOcrError('Could not detect items. Please enter manually.')
+      }
+    } catch {
+      setOcrError('OCR failed. Enter items manually.')
+    }
+    setOcrLoading(false)
   }
 
   const addLine = () => setLines(prev => [...prev, { name: '', qty: '1', rate: '0' }])
@@ -131,7 +232,14 @@ export function ReceiptScanPage({ onBack }: { onBack: () => void }) {
       {photo && (
         <div style={{ marginBottom: Spacing.md }}>
           <img src={photo} alt="Receipt" style={{ width: '100%', borderRadius: BorderRadius.md, maxHeight: 300, objectFit: 'contain', backgroundColor: '#f5f5f5' }} />
-          <button onClick={() => { setPhoto(null); stream?.getTracks().forEach(t => t.stop()); setStream(null) }} style={{ marginTop: Spacing.xs, background: 'none', border: 'none', color: Colors.error, cursor: 'pointer', fontSize: 12 }}>Retake</button>
+          <div style={{ display: 'flex', gap: Spacing.sm, marginTop: Spacing.xs, alignItems: 'center' }}>
+            <button onClick={() => { setPhoto(null); stream?.getTracks().forEach(t => t.stop()); setStream(null); setOcrError(''); setOcrLoading(false) }} style={{ background: 'none', border: 'none', color: Colors.error, cursor: 'pointer', fontSize: 12 }}>Retake</button>
+            <button onClick={runOcrOnPhoto} disabled={ocrLoading} style={{ padding: '6px 14px', backgroundColor: Colors.primary, color: '#fff', border: 'none', borderRadius: BorderRadius.sm, fontSize: 12, fontWeight: 600, cursor: ocrLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 4, opacity: ocrLoading ? 0.6 : 1 }}>
+              {ocrLoading ? <><Icons.Refresh size={14} /> Scanning...</> : <><Icons.Barcode size={14} /> Auto-Detect Items</>}
+            </button>
+          </div>
+          {ocrLoading && <div style={{ fontSize: 12, color: Colors.textSecondary, marginTop: Spacing.sm }}>Processing receipt image...</div>}
+          {ocrError && <div style={{ fontSize: 12, color: Colors.error, marginTop: Spacing.sm }}>{ocrError}</div>}
         </div>
       )}
 

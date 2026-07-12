@@ -1,31 +1,57 @@
 import React from 'react'
-import { Colors, Spacing, BorderRadius } from '../theme'
+import { Colors, Spacing, BorderRadius, Shadows } from '../theme'
 import { Icons } from '../utils/Icons'
 
 export function PurchaseHome({ onNavigate }: { onNavigate: (p: string) => void }) {
   return (
     <div style={{ padding: Spacing.lg }}>
-      <div style={{ fontSize: 18, fontWeight: 700, color: Colors.textPrimary, marginBottom: Spacing.lg }}>New Purchase</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: Spacing.md }}>
-        <button onClick={() => onNavigate('receipt-scan')} style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
-          padding: Spacing.xl, borderRadius: BorderRadius.md, border: `1.5px solid ${Colors.border}`,
-          background: Colors.surface, cursor: 'pointer',
+      <div style={{ fontSize: 18, fontWeight: 700, color: Colors.textPrimary, marginBottom: Spacing.xs }}>New Purchase</div>
+      <div style={{ fontSize: 13, color: Colors.textSecondary, marginBottom: Spacing.lg }}>Choose how you want to record this purchase</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: Spacing.md }}>
+        <button onClick={() => onNavigate('smart-purchase')} style={{
+          display: 'flex', alignItems: 'center', gap: Spacing.lg, padding: Spacing.lg,
+          borderRadius: BorderRadius.md, border: `1.5px solid ${Colors.primary}`,
+          background: Colors.primaryLight, cursor: 'pointer', textAlign: 'left',
+          ...Shadows.sm,
         }}>
-          <div style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.successLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Icons.Camera size={22} color={Colors.success} />
+          <div style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: Colors.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icons.Barcode size={24} color={Colors.textLight} />
           </div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: Colors.textPrimary }}>Scan Bill</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: Colors.primary, marginBottom: 2 }}>Smart Scan (OCR)</div>
+            <div style={{ fontSize: 12, color: Colors.textSecondary, lineHeight: 1.4 }}>Upload a bill photo &mdash; we&rsquo;ll auto-detect items, quantities &amp; prices using AI</div>
+          </div>
+          <Icons.ArrowRight size={20} color={Colors.primary} />
+        </button>
+        <button onClick={() => onNavigate('receipt-scan')} style={{
+          display: 'flex', alignItems: 'center', gap: Spacing.lg, padding: Spacing.lg,
+          borderRadius: BorderRadius.md, border: `1.5px solid ${Colors.border}`,
+          background: Colors.surface, cursor: 'pointer', textAlign: 'left',
+          ...Shadows.sm,
+        }}>
+          <div style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: Colors.successLight, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icons.Camera size={24} color={Colors.success} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: Colors.textPrimary, marginBottom: 2 }}>Quick Scan</div>
+            <div style={{ fontSize: 12, color: Colors.textSecondary, lineHeight: 1.4 }}>Take a photo &amp; manually enter items &mdash; fastest way for simple receipts</div>
+          </div>
+          <Icons.ArrowRight size={20} color={Colors.textDisabled} />
         </button>
         <button onClick={() => onNavigate('billing?type=PURCHASE')} style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
-          padding: Spacing.xl, borderRadius: BorderRadius.md, border: `1.5px solid ${Colors.border}`,
-          background: Colors.surface, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: Spacing.lg, padding: Spacing.lg,
+          borderRadius: BorderRadius.md, border: `1.5px solid ${Colors.border}`,
+          background: Colors.surface, cursor: 'pointer', textAlign: 'left',
+          ...Shadows.sm,
         }}>
-          <div style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.warningLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Icons.Edit size={22} color={Colors.warning} />
+          <div style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: Colors.warningLight, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icons.Edit size={24} color={Colors.warning} />
           </div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: Colors.textPrimary }}>Manual Entry</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: Colors.textPrimary, marginBottom: 2 }}>Manual Entry</div>
+            <div style={{ fontSize: 12, color: Colors.textSecondary, lineHeight: 1.4 }}>Full invoice form with product search &mdash; best for complex bills</div>
+          </div>
+          <Icons.ArrowRight size={20} color={Colors.textDisabled} />
         </button>
       </div>
     </div>
