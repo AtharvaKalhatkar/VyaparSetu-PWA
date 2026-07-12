@@ -122,10 +122,40 @@ export function ReceiptScanPage({ onBack }: { onBack: () => void }) {
     }
   }
 
+  function autoDetectVendor(ocrText: string): string {
+    const lines = ocrText.split('\n').map(l => l.trim()).filter(Boolean)
+    const headerText = lines.slice(0, Math.min(6, lines.length)).join(' ')
+
+    const gstMatch = headerText.match(/\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}/)
+    if (gstMatch) {
+      const byGst = DB.parties.list().find(p => p.gstin && p.gstin.replace(/\s/g, '') === gstMatch[0])
+      if (byGst) return byGst.name
+    }
+
+    const parties = DB.parties.list().filter(p => p.type === 'SUPPLIER' || p.type === 'BOTH')
+    const headerLower = headerText.toLowerCase()
+    const scored = parties.map(p => {
+      const parts = p.name.toLowerCase().split(/\s+/).filter(t => t.length > 2)
+      const matchCount = parts.filter(part => headerLower.includes(part)).length
+      return { name: p.name, score: parts.length > 0 ? matchCount / parts.length : 0 }
+    }).filter(x => x.score > 0.5).sort((a, b) => b.score - a.score)
+    if (scored.length > 0) return scored[0].name
+
+    const nonItemLines = lines.filter(l => {
+      const nums = l.match(/\d+\.?\d*/g)
+      return !nums || nums.length < 2
+    })
+    const candidate = nonItemLines.find(l => l.length > 5 && l.length < 60 && /^[A-Za-z\s\.\&]+$/.test(l.trim()))
+    return candidate?.trim() || ''
+  }
+
+  const [vendorDetected, setVendorDetected] = useState(false)
+
   const runOcrOnPhoto = async () => {
     if (!photo) return
     setOcrLoading(true)
     setOcrError('')
+    setVendorDetected(false)
     try {
       await loadTesseract()
       const processed = await preprocessImage(photo)
@@ -135,10 +165,15 @@ export function ReceiptScanPage({ onBack }: { onBack: () => void }) {
         setOcrError('Could not read text. Try a clearer photo.')
         return
       }
+      const detectedVendor = autoDetectVendor(text)
+      if (detectedVendor && !vendor) {
+        setVendor(detectedVendor)
+        setVendorDetected(true)
+      }
       const detected = parseReceiptLines(text.split('\n').map((l: string) => l.trim()).filter(Boolean), DB.items.list().filter(i => i.isActive))
       if (detected.length > 0) {
         setLines(detected.map(d => ({ name: d.name, qty: String(d.qty), rate: String(d.rate) })))
-        toast(`Detected ${detected.length} items from receipt!`, 'success')
+        toast(`Detected ${detected.length} items!`, 'success')
       } else {
         setOcrError('Could not detect items. Please enter manually.')
       }
@@ -247,7 +282,10 @@ export function ReceiptScanPage({ onBack }: { onBack: () => void }) {
         <>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: Spacing.sm }}>
             <Field label="Date"><input type="date" value={date} onChange={e => setDate(e.target.value)} style={s.input} /></Field>
-            <Field label="Vendor Name"><input value={vendor} onChange={e => setVendor(e.target.value)} placeholder="Supplier name" style={s.input} /></Field>
+            <Field label={vendorDetected ? 'Vendor Name (detected)' : 'Vendor Name'}>
+              <input value={vendor} onChange={e => { setVendor(e.target.value); setVendorDetected(false) }} placeholder="Supplier name" style={s.input} />
+              {vendorDetected && <div style={{ fontSize: 11, color: Colors.success, marginTop: 2 }}>Detected from receipt &mdash; change if wrong</div>}
+            </Field>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.sm }}>

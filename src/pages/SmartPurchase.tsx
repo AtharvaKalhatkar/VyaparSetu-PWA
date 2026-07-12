@@ -58,6 +58,55 @@ function extractNumbers(text: string): number[] {
   return tokens
 }
 
+function autoDetectSupplier(ocrText: string, suppliers: { id: string; name: string; gstin?: string }[]): string {
+  const lines = ocrText.split('\n').map(l => l.trim()).filter(Boolean)
+  const headerLines = lines.slice(0, Math.min(8, lines.length)).join(' ').toLowerCase()
+
+  const gstMatch = headerLines.match(/\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}/)
+  if (gstMatch) {
+    const matchByGst = suppliers.find(s => s.gstin && s.gstin.replace(/\s/g, '') === gstMatch[0])
+    if (matchByGst) return matchByGst.id
+  }
+
+  const nameMatches = suppliers
+    .map(s => {
+      const nameParts = s.name.toLowerCase().split(/\s+/).filter(t => t.length > 2)
+      const matchCount = nameParts.filter(p => headerLines.includes(p)).length
+      const score = nameParts.length > 0 ? matchCount / nameParts.length : 0
+      return { id: s.id, score }
+    })
+    .filter(x => x.score > 0.5)
+    .sort((a, b) => b.score - a.score)
+
+  return nameMatches[0]?.id || ''
+}
+
+function autoDetectDate(ocrText: string): string {
+  const datePatterns = [
+    /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/,
+    /(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/,
+    /(\d{1,2})\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{4})/i,
+  ]
+  for (const line of ocrText.split('\n')) {
+    for (const p of datePatterns) {
+      const m = line.match(p)
+      if (m) {
+        if (m[0].includes('-') || m[0].includes('/')) {
+          const parts = m[0].split(/[\/\-]/)
+          if (parts[0].length === 4) {
+            const d = new Date(`${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`)
+            if (!isNaN(d.getTime())) return d.toISOString().split('T')[0]
+          } else {
+            const d = new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`)
+            if (!isNaN(d.getTime()) && d <= new Date()) return d.toISOString().split('T')[0]
+          }
+        }
+      }
+    }
+  }
+  return todayISO()
+}
+
 function parseBillLines(lines: string[], items: Item[]): { name: string; qty: number; rate: number; amount: number }[] {
   const result: { name: string; qty: number; rate: number; amount: number }[] = []
 
@@ -91,7 +140,6 @@ function parseBillLines(lines: string[], items: Item[]): { name: string; qty: nu
     const atMatch = raw.match(/@\s*(\d+\.?\d*)/i)
     const xMatch = raw.match(/(\d+\.?\d*)\s*[xX]\s*(\d+\.?\d*)/)
     const eqMatch = raw.match(/[=:]\s*(\d+\.?\d*)/)
-    const mulStar = raw.match(/(\d+\.?\d*)\s*\*\s*(\d+\.?\d*)/)
 
     if (nums.length >= 3) {
       amount = nums[nums.length - 1]
@@ -129,10 +177,9 @@ function parseBillLines(lines: string[], items: Item[]): { name: string; qty: nu
 
     if (amount === 0) continue
 
-    const maxReasonable = 9999999
     qty = Math.min(qty, 99999)
-    rate = Math.min(rate, maxReasonable)
-    amount = Math.min(amount, maxReasonable)
+    rate = Math.min(rate, 9999999)
+    amount = Math.min(amount, 9999999)
     if (qty <= 0) qty = 1
 
     let name = raw
@@ -188,6 +235,7 @@ export function SmartPurchase() {
   const [partyId, setPartyId] = useState('')
   const [date, setDate] = useState(todayISO())
   const [saved, setSaved] = useState(false)
+  const [supplierAutoDetected, setSupplierAutoDetected] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const mountedRef = useRef(true)
 
@@ -205,6 +253,7 @@ export function SmartPurchase() {
     setOcrText('')
     setParsedItems([])
     setPartyId('')
+    setSupplierAutoDetected(false)
     const reader = new FileReader()
     reader.onload = async (ev) => {
       const dataUrl = ev.target?.result as string
@@ -235,16 +284,28 @@ export function SmartPurchase() {
       if (!mountedRef.current) return
       const text = result.data.text
       setOcrText(text)
+
       if (text.trim().length < 5) {
         setError('Could not read any text from this image. Try a clearer photo.')
+        if (mountedRef.current) setLoading(false)
         return
       }
+
+      const detectedPartyId = autoDetectSupplier(text, suppliers)
+      if (detectedPartyId) {
+        setPartyId(detectedPartyId)
+        setSupplierAutoDetected(true)
+      }
+
+      const detectedDate = autoDetectDate(text)
+      setDate(detectedDate)
+
       const lines = text.split('\n').map((l: string) => l.trim()).filter(Boolean)
       const detected = parseBillLines(lines, inventoryItems)
       if (detected.length > 0) {
         setParsedItems(detected)
       } else {
-        setError('Could not detect items from the bill text. Please enter manually below.')
+        setError('Could not detect items from the bill text. Please enter items manually below.')
       }
     } catch (err) {
       if (!mountedRef.current) return
@@ -289,8 +350,12 @@ export function SmartPurchase() {
   }
 
   const resetAll = () => {
-    setImage(null); setOcrText(''); setParsedItems([]); setError(''); setPartyId(''); setDate(todayISO()); setSaved(false)
+    setImage(null); setOcrText(''); setParsedItems([]); setError(''); setPartyId(''); setDate(todayISO()); setSaved(false); setSupplierAutoDetected(false)
     if (fileRef.current) fileRef.current.value = ''
+  }
+
+  const changePhoto = () => {
+    fileRef.current?.click()
   }
 
   if (saved) {
@@ -308,6 +373,8 @@ export function SmartPurchase() {
     )
   }
 
+  const totalAmount = parsedItems.reduce((s, p) => s + p.amount, 0)
+
   return (
     <div style={{ padding: Spacing.lg, paddingBottom: 80 }}>
       <div style={{ backgroundColor: Colors.primaryLight + '40', borderRadius: BorderRadius.md, padding: Spacing.lg, marginBottom: Spacing.lg, border: `1px solid ${Colors.primary}20` }}>
@@ -320,16 +387,24 @@ export function SmartPurchase() {
       </div>
 
       <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handleImage} style={{ display: 'none' }} />
-      <div onClick={() => fileRef.current?.click()} style={{ border: `2px dashed ${Colors.border}`, borderRadius: BorderRadius.md, padding: Spacing.xxxl, textAlign: 'center', cursor: 'pointer', marginBottom: Spacing.lg, backgroundColor: Colors.surface }}>
-        {image ? (
-          <img src={image} alt="Bill" style={{ maxHeight: 200, maxWidth: '100%', borderRadius: BorderRadius.sm }} />
-        ) : (
-          <div>
-            <Icons.Barcode size={40} color={Colors.textDisabled} />
-            <div style={{ fontSize: 14, color: Colors.textSecondary, marginTop: Spacing.sm }}>Tap to take or upload bill photo</div>
-            <div style={{ fontSize: 11, color: Colors.textDisabled, marginTop: 4 }}>Supports JPG, PNG</div>
-          </div>
-        )}
+
+      <div style={{ position: 'relative', marginBottom: Spacing.md }}>
+        <div onClick={changePhoto} style={{ border: `2px dashed ${Colors.border}`, borderRadius: BorderRadius.md, padding: image ? Spacing.sm : Spacing.xxxl, textAlign: 'center', cursor: 'pointer', backgroundColor: Colors.surface }}>
+          {image ? (
+            <div style={{ position: 'relative' }}>
+              <img src={image} alt="Bill" style={{ maxHeight: 180, maxWidth: '100%', borderRadius: BorderRadius.sm }} />
+              <div style={{ position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff', borderRadius: BorderRadius.sm, padding: '4px 10px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Icons.Edit size={12} /> Change Photo
+              </div>
+            </div>
+          ) : (
+            <div>
+              <Icons.Barcode size={40} color={Colors.textDisabled} />
+              <div style={{ fontSize: 14, color: Colors.textSecondary, marginTop: Spacing.sm }}>Tap to take or upload bill photo</div>
+              <div style={{ fontSize: 11, color: Colors.textDisabled, marginTop: 4 }}>Supports JPG, PNG</div>
+            </div>
+          )}
+        </div>
       </div>
 
       {loading && (
@@ -341,37 +416,56 @@ export function SmartPurchase() {
       )}
 
       {error && !loading && (
-        <div style={{ backgroundColor: Colors.errorLight || '#fef2f2', borderRadius: BorderRadius.md, padding: Spacing.md, marginBottom: Spacing.lg, border: `1px solid ${Colors.error}30`, fontSize: 13, color: Colors.error }}>
+        <div style={{ backgroundColor: Colors.errorLight, borderRadius: BorderRadius.md, padding: Spacing.md, marginBottom: Spacing.lg, border: `1px solid ${Colors.error}30`, fontSize: 13, color: Colors.error }}>
           {error}
         </div>
       )}
 
       {parsedItems.length > 0 && (
-        <div style={{ marginBottom: Spacing.lg }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: Colors.textPrimary, marginBottom: Spacing.md }}>
-            Detected Items ({parsedItems.length}) — Please Verify
-          </div>
-          {parsedItems.map((p, i) => (
-            <div key={i} style={{ backgroundColor: Colors.surface, borderRadius: BorderRadius.md, border: `1px solid ${Colors.border}`, padding: Spacing.md, marginBottom: Spacing.sm }}>
-              <Field label="Item Name">
-                <input value={p.name} onChange={e => updateParsed(i, 'name', e.target.value)} style={s.input} placeholder="Item name" />
-              </Field>
-              <div style={{ display: 'flex', gap: Spacing.sm }}>
-                <Field label="Qty">
-                  <input inputMode="decimal" value={p.qty} onChange={e => { const v = e.target.value; if (v === '') { updateParsed(i, 'qty', 0); return }; const n = parseFloat(v); if (!isNaN(n)) updateParsed(i, 'qty', Math.max(0.001, n)) }} onBlur={e => { if (p.qty <= 0) updateParsed(i, 'qty', 1) }} style={{ ...s.input, width: '100%' }} />
-                </Field>
-                <Field label="Rate (\u20B9)">
-                  <input inputMode="decimal" value={p.rate} onChange={e => { const v = e.target.value; if (v === '') { updateParsed(i, 'rate', 0); return }; const n = parseFloat(v); if (!isNaN(n)) updateParsed(i, 'rate', n) }} style={{ ...s.input, width: '100%' }} />
-                </Field>
-                <Field label="Amount (\u20B9)">
-                  <input inputMode="decimal" value={p.amount} onChange={e => { const v = e.target.value; if (v === '') { updateParsed(i, 'amount', 0); return }; const n = parseFloat(v); if (!isNaN(n)) updateParsed(i, 'amount', n) }} style={{ ...s.input, width: '100%' }} />
-                </Field>
-                <button onClick={() => removeParsed(i)} style={{ background: 'none', border: 'none', color: Colors.error, cursor: 'pointer', alignSelf: 'flex-end', padding: '12px 4px' }} title="Remove item">
-                  <Icons.Delete size={18} />
-                </button>
-              </div>
+        <div style={{ marginBottom: Spacing.lg, backgroundColor: Colors.surface, borderRadius: BorderRadius.md, border: `1px solid ${Colors.border}`, padding: Spacing.md }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: Colors.textPrimary }}>
+              Detected Items ({parsedItems.length})
             </div>
-          ))}
+            <div style={{ fontSize: 13, color: Colors.textSecondary }}>
+              Total: <span style={{ fontWeight: 700, color: Colors.textPrimary }}>\u20B9{totalAmount.toLocaleString('en-IN')}</span>
+            </div>
+          </div>
+
+          {parsedItems.map((p, i) => {
+            const isMatched = inventoryItems.some(item => item.name === p.name)
+            return (
+              <div key={i} style={{ backgroundColor: Colors.surface, borderRadius: BorderRadius.md, border: `1px solid ${Colors.border}`, padding: Spacing.md, marginBottom: Spacing.sm }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs }}>
+                  <div style={{ flex: 1 }}>
+                    <Field label="Item Name">
+                      <input value={p.name} onChange={e => updateParsed(i, 'name', e.target.value)} style={s.input} placeholder="Item name" />
+                    </Field>
+                  </div>
+                  {isMatched && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: Colors.success, backgroundColor: Colors.successLight, padding: '2px 8px', borderRadius: BorderRadius.xs, whiteSpace: 'nowrap', marginTop: 18 }}>
+                      In Stock
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: Spacing.sm }}>
+                  <Field label="Qty">
+                    <input inputMode="decimal" value={p.qty} onChange={e => { const v = e.target.value; if (v === '') { updateParsed(i, 'qty', 0); return }; const n = parseFloat(v); if (!isNaN(n)) updateParsed(i, 'qty', Math.max(0.001, n)) }} onBlur={e => { if (p.qty <= 0) updateParsed(i, 'qty', 1) }} style={{ ...s.input, width: '100%' }} />
+                  </Field>
+                  <Field label="Rate (\u20B9)">
+                    <input inputMode="decimal" value={p.rate} onChange={e => { const v = e.target.value; if (v === '') { updateParsed(i, 'rate', 0); return }; const n = parseFloat(v); if (!isNaN(n)) updateParsed(i, 'rate', n) }} style={{ ...s.input, width: '100%' }} />
+                  </Field>
+                  <Field label="Amount (\u20B9)">
+                    <input inputMode="decimal" value={p.amount} onChange={e => { const v = e.target.value; if (v === '') { updateParsed(i, 'amount', 0); return }; const n = parseFloat(v); if (!isNaN(n)) updateParsed(i, 'amount', n) }} style={{ ...s.input, width: '100%' }} />
+                  </Field>
+                  <button onClick={() => removeParsed(i)} style={{ background: 'none', border: 'none', color: Colors.error, cursor: 'pointer', alignSelf: 'flex-end', padding: '12px 4px' }} title="Remove item">
+                    <Icons.Delete size={18} />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+
           <button onClick={addManualItem} style={{ width: '100%', padding: '12px', backgroundColor: Colors.surface, border: `1.5px dashed ${Colors.border}`, borderRadius: BorderRadius.sm, cursor: 'pointer', fontSize: 13, color: Colors.textSecondary, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
             <Icons.Add size={16} /> Add Item Manually
           </button>
@@ -391,11 +485,14 @@ export function SmartPurchase() {
 
       {(parsedItems.length > 0 || ocrText) && (
         <div style={{ marginBottom: Spacing.xl }}>
-          <Field label="Supplier">
+          <Field label={supplierAutoDetected ? 'Supplier (auto-detected)' : 'Supplier'}>
             <select value={partyId} onChange={e => setPartyId(e.target.value)} style={s.select}>
               <option value="">Cash Purchase (No Supplier)</option>
-              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}{s.gstin ? ` (${s.gstin})` : ''}</option>)}
             </select>
+            {supplierAutoDetected && (
+              <div style={{ fontSize: 11, color: Colors.success, marginTop: 2 }}>Detected from bill &mdash; change if wrong</div>
+            )}
           </Field>
           <Field label="Purchase Date">
             <input type="date" value={date} onChange={e => setDate(e.target.value)} style={s.input} />
@@ -406,7 +503,7 @@ export function SmartPurchase() {
       {ocrText && !loading && (
         <details style={{ marginBottom: Spacing.lg, cursor: 'pointer' }}>
           <summary style={{ fontSize: 12, color: Colors.textSecondary, fontWeight: 500 }}>
-            Raw OCR Text ({ocrText.split('\n').length} lines)
+            Raw OCR Text ({ocrText.split('\n').length} lines) &mdash; tap to expand
           </summary>
           <pre style={{ fontSize: 11, color: Colors.textDisabled, whiteSpace: 'pre-wrap', backgroundColor: Colors.surfaceVariant, padding: Spacing.md, borderRadius: BorderRadius.sm, maxHeight: 200, overflow: 'auto', marginTop: Spacing.sm }}>
             {ocrText}
@@ -415,9 +512,11 @@ export function SmartPurchase() {
       )}
 
       {parsedItems.length > 0 && (
-        <button onClick={handleSave} style={s.primaryBtn}>
-          <Icons.Check size={16} /> Save Purchase ({parsedItems.length} items, \u20B9{parsedItems.reduce((s, p) => s + p.amount, 0).toLocaleString('en-IN')})
-        </button>
+        <div style={{ position: 'sticky', bottom: 0, paddingTop: Spacing.md, backgroundColor: Colors.background }}>
+          <button onClick={handleSave} style={s.primaryBtn}>
+            <Icons.Check size={16} /> Save Purchase ({parsedItems.length} items, \u20B9{totalAmount.toLocaleString('en-IN')})
+          </button>
+        </div>
       )}
     </div>
   )
