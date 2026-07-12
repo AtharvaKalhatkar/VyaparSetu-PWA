@@ -45,4 +45,5 @@ export const Icons = {
   Bell: (p: IconProps) => <svg {...s(p.size)} style={{ color: p.color, ...p.style }}><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>,
   Camera: (p: IconProps) => <svg {...s(p.size)} style={{ color: p.color, ...p.style }}><path d="M12 15.2a3.2 3.2 0 100-6.4 3.2 3.2 0 000 6.4zM9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>,
   Upload: (p: IconProps) => <svg {...s(p.size)} style={{ color: p.color, ...p.style }}><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>,
+  ArrowRight: (p: IconProps) => <svg {...s(p.size)} style={{ color: p.color, ...p.style }}><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>,
 }
