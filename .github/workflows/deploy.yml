@@ -1,0 +1,143 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - production
+          - staging
+      backend_tag:
+        description: "Backend Docker image tag (default: latest)"
+        required: false
+        default: "latest"
+        type: string
+
+env:
+  DOCKER_IMAGE: vyaparsetu/backend
+  HEALTH_CHECK_URL: ${{ github.event.inputs.environment == 'production' && 'https://api.vyaparsetu.com/actuator/health' || 'https://staging-api.vyaparsetu.com/actuator/health' }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script: |
+            cd /opt/vyaparsetu
+            echo "Pulling latest images..."
+            docker compose -f docker-compose.prod.yml pull
+            echo "Starting services..."
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            echo "Cleaning up old images..."
+            docker image prune -af --filter "until=24h"
+
+  health-check:
+    name: Health Check
+    needs: deploy-backend
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Wait for backend to start
+        run: sleep 30
+
+      - name: Check health endpoint
+        run: |
+          STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 ${{ env.HEALTH_CHECK_URL }})
+          if [ "$STATUS_CODE" -eq 200 ]; then
+            echo "Health check passed (Status: $STATUS_CODE)"
+          else
+            echo "Health check failed (Status: $STATUS_CODE)"
+            exit 1
+          fi
+
+      - name: Verify backend response
+        run: |
+          RESPONSE=$(curl -s --max-time 30 ${{ env.HEALTH_CHECK_URL }})
+          echo "Response: $RESPONSE"
+          echo "$RESPONSE" | grep -q '"status":"UP"' && echo "Backend is UP" || (echo "Backend not healthy"; exit 1)
+
+  notify:
+    name: Send Notification
+    needs: [deploy-backend, health-check]
+    runs-on: ubuntu-latest
+    if: always()
+    environment: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Determine deployment status
+        id: status
+        run: |
+          if [ "${{ needs.health-check.result }}" == "success" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "color=good" >> $GITHUB_OUTPUT
+            echo "message=Deployment to ${{ github.event.inputs.environment }} completed successfully" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "color=danger" >> $GITHUB_OUTPUT
+            echo "message=Deployment to ${{ github.event.inputs.environment }} failed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Slack notification
+        if: env.SLACK_WEBHOOK != ''
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "attachments": [{
+                "color": "${{ steps.status.outputs.color }}",
+                "title": "Vyapar Setu Deployment",
+                "fields": [
+                  { "title": "Environment", "value": "${{ github.event.inputs.environment }}", "short": true },
+                  { "title": "Status", "value": "${{ steps.status.outputs.status }}", "short": true },
+                  { "title": "Backend Tag", "value": "${{ github.event.inputs.backend_tag }}", "short": true },
+                  { "title": "Run URL", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false }
+                ],
+                "footer": "GitHub Actions",
+                "ts": ${{ github.run_number }}
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK }}
+
+      - name: Send email notification on failure
+        if: steps.status.outputs.status == 'failure'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.MAIL_SERVER }}
+          server_port: ${{ secrets.MAIL_PORT }}
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "Vyapar Setu Deployment Failed - ${{ github.event.inputs.environment }}"
+          to: ${{ secrets.DEPLOY_NOTIFY_EMAIL }}
+          from: Vyapar Setu CI/CD
+          body: |
+            Deployment to ${{ github.event.inputs.environment }} failed.
+
+            Repository: ${{ github.repository }}
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            Backend Tag: ${{ github.event.inputs.backend_tag }}

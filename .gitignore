@@ -1,8 +1,61 @@
+# Java
+*.class
+*.jar
+*.war
+*.nar
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# Maven
+backend/target/
+backend/*.jar
+
+# Node
 node_modules/
-dist/
-*.local
-.env
-.env.*
-*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.yarn/
+
+# Expo/React Native
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/*.tsbuildinfo
+mobile/web-build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
 Thumbs.db
+Desktop.ini
+
+# Environment
+.env
+.env.local
+.env.*.local
+backend/.env
+
+# Logs
+*.log
+logs/
+
+# Docker
+docker-compose.override.yml
+
+# Build
+dist/
+build/
+*.tgz
+
+# Data and Releases
+releases/
+uploads/
+files.zip

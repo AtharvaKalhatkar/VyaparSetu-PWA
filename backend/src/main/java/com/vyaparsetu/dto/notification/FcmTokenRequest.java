@@ -1,0 +1,16 @@
+package com.vyaparsetu.dto.notification;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class FcmTokenRequest {
+    private String deviceId;
+    private String fcmToken;
+    private String deviceType;
+}

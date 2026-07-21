@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Vyapar Setu",
+    "slug": "vyaparsetu",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "scheme": "vyaparsetu",
+    "userInterfaceStyle": "automatic",
+    "platforms": ["android", "ios", "web"],
+    "android": {
+      "package": "com.vyaparsetu.mobile"
+    },
+    "ios": {
+      "bundleIdentifier": "com.vyaparsetu.mobile",
+      "supportsTablet": false
+    },
+    "plugins": [
+      "expo-router",
+      "expo-camera",
+      "expo-barcode-scanner",
+      "expo-notifications",
+      "expo-secure-store"
+    ]
+  }
+}

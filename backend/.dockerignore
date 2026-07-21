@@ -1,0 +1,12 @@
+target
+*.jar
+*.log
+.git
+.env
+.env.*
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

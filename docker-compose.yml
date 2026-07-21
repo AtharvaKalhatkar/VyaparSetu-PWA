@@ -1,0 +1,74 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: vyaparsetu-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: vyaparsetu
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - vyaparsetu-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: vyaparsetu-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - vyaparsetu-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: vyaparsetu-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - vyaparsetu-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vyaparsetu-backend
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./backend/.env.example
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    networks:
+      - vyaparsetu-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: vyaparsetu-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+    networks:
+      - vyaparsetu-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  vyaparsetu-network:
+    driver: bridge
