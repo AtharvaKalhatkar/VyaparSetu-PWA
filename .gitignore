@@ -59,3 +59,11 @@ build/
 releases/
 uploads/
 files.zip
+files/
+
+# Presentation & Helper Scripts (Not required to run application)
+*.pptx
+generate_*.py
+VYAPAR_SETU_APP_DESCRIPTION.txt
+pwa/errors.txt
+
