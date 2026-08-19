@@ -8,7 +8,7 @@ import { formatCurrency, formatDate } from '../utils/formatting'
 export function Gstr2Matching() {
   const [filter, setFilter] = useState<'ALL' | 'MATCHED' | 'MISMATCHED' | 'UNMATCHED'>('ALL')
   const settings = DB.settings.get()
-  const invoices = DB.invoices.list().filter(i => i.type === 'PURCHASE')
+  const invoices = DB.invoices.list().filter(i => i.type === 'PURCHASE' && (i.docType === 'PURCHASE' || !i.docType))
   const parties = DB.parties.list()
   const getParty = (id: string) => parties.find(p => p.id === id)
   const matched = invoices.filter(i => i.gstr2Matched === true)

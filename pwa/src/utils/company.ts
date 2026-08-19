@@ -46,6 +46,13 @@ export function saveCompany(c: Company): Company {
 
 export function deleteCompany(id: string) {
   saveCompanies(listCompanies().filter(c => c.id !== id))
+  const scopedPrefix = `vs_${id}_`
+  const keysToRemove: string[] = []
+  for (let i = 0; i < ls().length; i++) {
+    const key = ls().key(i)
+    if (key?.startsWith(scopedPrefix)) keysToRemove.push(key)
+  }
+  keysToRemove.forEach(k => ls().removeItem(k))
   if (getActiveCompanyId() === id) {
     const remaining = listCompanies()
     setActiveCompanyId(remaining.length > 0 ? remaining[0].id : null)
@@ -105,26 +112,55 @@ export function ensureCompany(): Company {
   return found
 }
 
-export function migrateLegacyData() {
-  const companies = listCompanies()
-  if (companies.length > 1) return
-  const companyId = companies[0]?.id || 'default'
-  const prefix = 'vs_'
-  const targetPrefix = `vs_${companyId}_`
-  const keys = ['parties', 'items', 'invoices', 'ledger', 'expenses', 'employees', 'crm', 'units', 'settings', 'bizProfile', 'stockAdj', 'bankAccounts', 'bankTxns', 'subscriptions', 'productions', 'deliveries', 'reminders', 'dashboardWidgets', 'lastBackup']
-  let migrated = false
-  for (const key of keys) {
-    const legacy = ls().getItem(prefix + key)
-    if (legacy) {
-      const target = ls().getItem(targetPrefix + key)
-      if (!target) {
-        ls().setItem(targetPrefix + key, legacy)
+export function migrateLegacyLocalData() {
+  if (ls().getItem('vs_legacy_migrated_v4') === 'true') return
+  try {
+    const legacyKeys = [
+      'parties', 'items', 'invoices', 'ledger', 'expenses', 'employees', 'crm',
+      'units', 'settings', 'bizProfile', 'stockAdj', 'bankAccounts', 'bankTxns',
+      'subscriptions', 'productions', 'deliveries', 'reminders', 'fixedAssets',
+      'auditLogs', 'warehouses', 'customFields', 'stockTransfers', 'priceLists',
+      'brands', 'tdsTcsEntries', 'debitCreditNotes', 'eway_bills', 'seeded',
+    ]
+
+    const targetCompanyId = getActiveCompanyId() || 'default'
+    legacyKeys.forEach(key => {
+      const legacyKey = `vs_${key}`
+      const scopedKey = `vs_${targetCompanyId}_${key}`
+      const legacyValue = ls().getItem(legacyKey)
+      if (legacyValue !== null && ls().getItem(scopedKey) === null) {
+        ls().setItem(scopedKey, legacyValue)
       }
-      migrated = true
+    })
+
+    if (listCompanies().length === 0) {
+      const profileRaw = ls().getItem('vs_bizProfile')
+      const profile = profileRaw ? JSON.parse(profileRaw) : null
+      saveCompany({
+        ...getDefaultCompany(),
+        id: targetCompanyId,
+        name: profile?.businessName || 'My Business',
+        businessName: profile?.businessName || 'My Business',
+        ownerName: profile?.ownerName || '',
+        phone: profile?.phone || '',
+        email: profile?.email || '',
+        address: profile?.address || '',
+        gstin: profile?.gstin || '',
+        pan: profile?.pan || '',
+        bankName: profile?.bankName || '',
+        bankAccount: profile?.bankAccount || '',
+        bankIfsc: profile?.bankIfsc || '',
+        signature: profile?.signature || '',
+      })
+      setActiveCompanyId(targetCompanyId)
     }
+
+    ls().setItem('vs_legacy_migrated_v4', 'true')
+  } catch (e) {
+    console.error('Legacy migration error', e)
   }
-  if (migrated && companies.length === 0) {
-    saveCompany(getDefaultCompany())
-    setActiveCompanyId('default')
-  }
+}
+
+export function migrateLegacyData() {
+  migrateLegacyLocalData()
 }

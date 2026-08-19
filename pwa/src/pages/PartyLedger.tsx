@@ -22,7 +22,7 @@ const PRINT_STYLE = `
   @media print { body { -webkit-print-color-adjust: exact; } }
 `
 
-export function PartyLedger({ partyId }: { partyId: string }) {
+export function PartyLedger({ partyId, onBack, onNavigate }: { partyId: string; onBack?: () => void; onNavigate?: (p: string) => void }) {
   const party = DB.parties.byId(partyId)
   const allEntries = useMemo(() => DB.ledger.forParty(partyId).reverse(), [partyId])
   const [fromDate, setFromDate] = useState('')

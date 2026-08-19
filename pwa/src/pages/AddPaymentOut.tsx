@@ -55,9 +55,21 @@ export function AddPaymentOut({ onBack, onNavigate, invoiceId: propInvId }: { on
       )}
       <Field label="Payment Amount">
         <input inputMode="decimal" value={amountStr} onChange={e => setAmountStr(e.target.value)} placeholder="0.00" style={s.input} />
+        {inv && (
+          <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => setAmountStr(String(inv.dueAmount))} style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${Colors.primary}`, backgroundColor: Colors.primaryLight, color: Colors.primary, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+              Full Due: {formatCurrency(inv.dueAmount)}
+            </button>
+            {inv.dueAmount > 500 && (
+              <button type="button" onClick={() => setAmountStr(String(Math.round(inv.dueAmount / 2)))} style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${Colors.border}`, backgroundColor: Colors.surface, color: Colors.textSecondary, fontSize: 11, fontWeight: 500, cursor: 'pointer' }}>
+                50% ({formatCurrency(Math.round(inv.dueAmount / 2))})
+              </button>
+            )}
+          </div>
+        )}
         {inv && amountStr && (
-          <div style={{ marginTop: 4, fontSize: 12, color: parseFloat(amountStr) > inv.dueAmount ? Colors.error : Colors.textSecondary }}>
-            {parseFloat(amountStr) > inv.dueAmount ? `Excess: ${formatCurrency(parseFloat(amountStr) - inv.dueAmount)}` : `Balance after: ${formatCurrency(inv.dueAmount - parseFloat(amountStr))}`}
+          <div style={{ marginTop: 6, fontSize: 12, fontWeight: 600, color: parseFloat(amountStr) > inv.dueAmount ? Colors.error : Colors.success }}>
+            {parseFloat(amountStr) > inv.dueAmount ? `Excess Payment: ${formatCurrency(parseFloat(amountStr) - inv.dueAmount)}` : `Remaining Due After Payment: ${formatCurrency(inv.dueAmount - parseFloat(amountStr))}`}
           </div>
         )}
       </Field>

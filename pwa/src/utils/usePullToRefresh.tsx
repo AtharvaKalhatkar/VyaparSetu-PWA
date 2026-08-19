@@ -17,14 +17,17 @@ export function usePullToRefresh(onRefresh: () => void) {
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
     if (!pulling || refreshing.current) return
+    const el = e.currentTarget
+    if (el.scrollTop > 0) return
     const dist = Math.max(0, (e.touches[0].clientY - startY.current) * 0.5)
     setPullDist(Math.min(dist, 120))
     if (dist > 80) {
       refreshing.current = true
       setPulling(false)
       setPullDist(0)
-      onRefresh()
-      setTimeout(() => { refreshing.current = false }, 500)
+      Promise.resolve(onRefresh()).finally(() => {
+        setTimeout(() => { refreshing.current = false }, 300)
+      })
     }
   }, [pulling, onRefresh])
 

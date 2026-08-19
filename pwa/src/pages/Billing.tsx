@@ -10,6 +10,9 @@ import { useAuth } from '../store/auth'
 import { applyStockChanges, createLedgerEntry } from '../utils/invoiceOps'
 import { getSmartSuggestions, getBundleRecommendations } from '../utils/ai'
 import type { SmartSuggestion, BundleSuggestion } from '../utils/ai'
+import type { Item } from '../types'
+
+import { toBaseQty } from '../utils/invoiceOps'
 
 const safeNum = (v: string) => { const n = parseFloat(v); return isNaN(n) ? 0 : n }
 
@@ -76,9 +79,48 @@ export function Billing({ editId, initialType, onBack, onNavigate }: { editId?: 
   const removeLine = (idx: number) => setLines(prev => prev.filter((_, i) => i !== idx))
 
   const saveInvoice = () => {
+    if (isReadOnly) {
+      toast('View-only users cannot create or edit invoices', 'warning')
+      return
+    }
     if (!partyId || lines.length === 0) return
+
+    // Out of Stock / Negative Stock Validation for Sale Invoices
+    if (type === 'SALE') {
+      const outOfStockLines: { name: string; available: number; requested: number; unit: string }[] = []
+      lines.forEach(l => {
+        const item = allItems.find(i => i.id === l.itemId)
+        if (!item) return
+        const requested = toBaseQty(item, safeNum(l.qty), l.unit)
+        let available = item.currentStock || 0
+
+        if (existing?.type === 'SALE') {
+          const oldLine = existing.items.find(i => i.itemId === l.itemId)
+          if (oldLine) available += toBaseQty(item, oldLine.quantity, oldLine.unit)
+        }
+
+        if (available < requested) {
+          outOfStockLines.push({ name: l.name, available, requested, unit: item.unit })
+        }
+      })
+
+      if (outOfStockLines.length > 0) {
+        const allowNegative = DB.settings.get()?.allowNegativeStock ?? false
+        const details = outOfStockLines.map(x => `• ${x.name}: Available ${x.available} ${x.unit}, Requested ${x.requested} ${x.unit}`).join('\n')
+        
+        if (!allowNegative) {
+          alert(`❌ Cannot Create Sale Invoice!\n\nThe following items are OUT OF STOCK:\n\n${details}\n\nTo allow negative stock sales, enable 'Allow Negative Stock' in Invoice Settings.`)
+          return
+        } else {
+          if (!confirm(`⚠️ Out of Stock Warning!\n\nThe following items have insufficient stock:\n\n${details}\n\nDo you still want to proceed with negative stock sale?`)) {
+            return
+          }
+        }
+      }
+    }
+
     if (type === 'SALE' && party && party.creditLimit > 0) {
-      const totalDue = DB.invoices.list().filter(i => i.partyId === partyId && i.paymentStatus !== 'PAID').reduce((s, i) => s + i.dueAmount, 0)
+      const totalDue = DB.invoices.list().filter(i => i.partyId === partyId && (i.type === 'SALE' || i.docType === 'SALE') && i.paymentStatus !== 'PAID').reduce((s, i) => s + i.dueAmount, 0)
       if (totalDue + grandTotal > party.creditLimit) {
         if (!confirm(`⚠️ Credit Limit Exceeded!\n\n${party.name} has a credit limit of ${formatCurrency(party.creditLimit)}.\nCurrent outstanding: ${formatCurrency(totalDue)}\nThis invoice: ${formatCurrency(grandTotal)}\nTotal would be: ${formatCurrency(totalDue + grandTotal)}\n\nDo you still want to proceed?`)) return
         toast('Credit limit exceeded — invoice saved with warning', 'warning')
@@ -161,6 +203,8 @@ export function Billing({ editId, initialType, onBack, onNavigate }: { editId?: 
     const q = search.toLowerCase()
     return allItems.filter(i => !lines.find(l => l.itemId === i.id) && (i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q) || (i.barcode && i.barcode.includes(q)))).slice(0, 30)
   }, [search, allItems, lines])
+
+  const cannotSave = isReadOnly || !partyId || lines.length === 0 || lines.every(l => !safeNum(l.qty) || !safeNum(l.rate))
 
   if (saved) {
     return <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
@@ -267,11 +311,14 @@ export function Billing({ editId, initialType, onBack, onNavigate }: { editId?: 
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
                 <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: Colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: Colors.primary, fontWeight: 700 }}>{i.name[0]}</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: Colors.textPrimary, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: Colors.textPrimary, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     {i.name}
+                    {i.brand && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4, backgroundColor: Colors.primaryLight, color: Colors.primary }}>{i.brand}</span>}
                     {recentMap.has(i.id) && <span style={{ fontSize: 9, fontWeight: 700, color: Colors.accent, backgroundColor: Colors.accent + '15', padding: '1px 6px', borderRadius: 4 }}>Recent</span>}
                   </div>
-                  <div style={{ fontSize: 11, color: Colors.textSecondary }}>{i.sku} · Stock: {i.currentStock} {i.unit}</div>
+                  <div style={{ fontSize: 11, color: Colors.textSecondary }}>
+                    {i.sku} · Stock: {i.currentStock} {i.unit}{i.rackLocation ? ` · Rack: ${i.rackLocation}` : ''}{i.expDate ? ` · Exp: ${i.expDate}` : ''}
+                  </div>
                   {recentMap.has(i.id) && <div style={{ fontSize: 10, color: Colors.accent, marginTop: 1 }}>Last: {recentMap.get(i.id)?.qty} × {formatCurrency(safeNum(recentMap.get(i.id)?.rate || '0'))}</div>}
                 </div>
                 <div style={{ textAlign: 'right' }}>
@@ -338,7 +385,7 @@ export function Billing({ editId, initialType, onBack, onNavigate }: { editId?: 
         </div>
       </div>
 
-      <button data-haptic="15" onClick={saveInvoice} disabled={!partyId || lines.length === 0 || lines.every(l => !safeNum(l.qty) || !safeNum(l.rate))} style={{ marginTop: Spacing.lg, width: '100%', ...(!partyId || lines.length === 0 ? s.primaryBtnDisabled : s.primaryBtn) }}>
+      <button data-haptic="15" onClick={saveInvoice} disabled={cannotSave} style={{ marginTop: Spacing.lg, width: '100%', ...(cannotSave ? s.primaryBtnDisabled : s.primaryBtn) }}>
         <Icons.Check size={16} /> {existing ? 'Update Invoice' : 'Save Invoice'}
       </button>
     </div>

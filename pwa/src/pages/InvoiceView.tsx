@@ -1,10 +1,10 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Colors, Spacing, BorderRadius } from '../theme'
 import { s } from '../utils/styles'
 import { DB } from '../utils/storage'
 import { formatCurrency as fc, formatDate } from '../utils/formatting'
 import { Icons } from '../utils/Icons'
-import type { Invoice, InvoiceItem } from '../types'
+import type { Invoice, InvoiceItem, InvoiceTemplate } from '../types'
 
 function formatCurrency(n: number) { return fc(n) }
 
@@ -25,6 +25,8 @@ function numberToWords(n: number): string {
   return convert(num) + ' Only'
 }
 
+import { printThermalInvoice } from '../utils/thermalPrinter'
+
 export function InvoiceView({ invoiceId, onNavigate, autoPrint }: { invoiceId: string; onNavigate?: (p: string) => void; autoPrint?: boolean }) {
   const inv = DB.invoices.byId(invoiceId)
 
@@ -39,6 +41,7 @@ export function InvoiceView({ invoiceId, onNavigate, autoPrint }: { invoiceId: s
 
   const settings = DB.settings.get()
   const profile = DB.businessProfile.get()
+  const [currentTemplate, setCurrentTemplate] = useState<InvoiceTemplate>(settings.template || 'STANDARD')
 
   const printInvoice = () => {
     const printWindow = window.open('', '_blank')
@@ -72,10 +75,36 @@ export function InvoiceView({ invoiceId, onNavigate, autoPrint }: { invoiceId: s
 
   return (
     <div style={{ padding: Spacing.lg, paddingBottom: 80 }}>
-      <div className="no-print" style={{ marginBottom: Spacing.md, display: 'flex', gap: Spacing.sm, flexWrap: 'wrap' }}>
-        <button onClick={printInvoice} style={{ ...s.primaryBtn, width: 'auto', padding: '10px 20px', display: 'inline-flex', alignItems: 'center', gap: Spacing.sm, backgroundColor: '#333' }}><Icons.Print size={16} /> Print / PDF</button>
-        <button onClick={shareAsPdf} style={{ ...s.primaryBtn, width: 'auto', padding: '10px 20px', display: 'inline-flex', alignItems: 'center', gap: Spacing.sm, backgroundColor: '#1565C0' }}><Icons.Download size={16} /> Share PDF</button>
+      <div className="no-print" style={{ marginBottom: Spacing.md, display: 'flex', gap: Spacing.sm, flexWrap: 'wrap', alignItems: 'center' }}>
+        <button onClick={printInvoice} style={{ ...s.primaryBtn, width: 'auto', padding: '10px 18px', display: 'inline-flex', alignItems: 'center', gap: Spacing.sm, backgroundColor: '#333' }}><Icons.Print size={16} /> Print / PDF</button>
+        <button onClick={() => printThermalInvoice(inv, 58)} style={{ ...s.primaryBtn, width: 'auto', padding: '10px 18px', display: 'inline-flex', alignItems: 'center', gap: Spacing.sm, backgroundColor: '#059669' }}>🖨️ Thermal (Bluetooth)</button>
+        <button onClick={shareAsPdf} style={{ ...s.primaryBtn, width: 'auto', padding: '10px 18px', display: 'inline-flex', alignItems: 'center', gap: Spacing.sm, backgroundColor: '#1565C0' }}><Icons.Download size={16} /> Share PDF</button>
         <button onClick={shareWhatsApp} style={{ ...s.primaryBtn, width: 'auto', padding: '10px 20px', display: 'inline-flex', alignItems: 'center', gap: Spacing.sm, backgroundColor: '#25D366' }}><Icons.WhatsApp size={16} /> WhatsApp</button>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, backgroundColor: Colors.surface, padding: '8px 14px', borderRadius: BorderRadius.md, border: `1px solid ${Colors.border}` }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: Colors.textSecondary }}>Format:</span>
+          <select
+            value={currentTemplate}
+            onChange={e => {
+              const t = e.target.value as InvoiceTemplate
+              setCurrentTemplate(t)
+              DB.settings.save({ ...settings, template: t })
+            }}
+            style={{ fontSize: 13, fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer', outline: 'none', color: Colors.primary }}
+          >
+            <option value="STANDARD">Standard</option>
+            <option value="COMPACT">Compact</option>
+            <option value="DETAILED">Detailed Tax</option>
+            <option value="CLASSIC">Classic</option>
+            <option value="MODERN">Modern</option>
+            <option value="PREMIUM">Premium</option>
+            <option value="ELEGANT">Elegant</option>
+            <option value="BOLD">Bold</option>
+            <option value="NATURE">Nature</option>
+            <option value="OCEAN">Ocean</option>
+            <option value="SUNSET">Sunset</option>
+            <option value="CORPORATE">Corporate</option>
+          </select>
+        </div>
         {onNavigate && <button onClick={() => onNavigate('returns?sourceId=' + invoiceId)} style={{ ...s.primaryBtn, width: 'auto', padding: '10px 20px', display: 'inline-flex', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.error }}><Icons.Refresh size={16} /> Return</button>}
       </div>
 
@@ -85,18 +114,36 @@ export function InvoiceView({ invoiceId, onNavigate, autoPrint }: { invoiceId: s
         fontFamily: "'Segoe UI', Arial, sans-serif", position: 'relative', overflow: 'hidden',
       }}>
         <div style={{ position: 'relative', zIndex: 1 }}>
-        {settings.template === 'COMPACT' ? <CompactTemplate inv={inv} settings={settings} profile={profile} /> :
-         settings.template === 'DETAILED' ? <DetailedTemplate inv={inv} settings={settings} profile={profile} /> :
-         settings.template === 'CLASSIC' ? <ClassicTemplate inv={inv} settings={settings} profile={profile} /> :
-         settings.template === 'MODERN' ? <ModernTemplate inv={inv} settings={settings} profile={profile} /> :
-         settings.template === 'PREMIUM' ? <PremiumTemplate inv={inv} settings={settings} profile={profile} /> :
-         settings.template === 'ELEGANT' ? <ElegantTemplate inv={inv} settings={settings} profile={profile} /> :
-         settings.template === 'BOLD' ? <BoldTemplate inv={inv} settings={settings} profile={profile} /> :
-         settings.template === 'NATURE' ? <NatureTemplate inv={inv} settings={settings} profile={profile} /> :
-         settings.template === 'OCEAN' ? <OceanTemplate inv={inv} settings={settings} profile={profile} /> :
-         settings.template === 'SUNSET' ? <SunsetTemplate inv={inv} settings={settings} profile={profile} /> :
-         settings.template === 'CORPORATE' ? <CorporateTemplate inv={inv} settings={settings} profile={profile} /> :
-          <StandardTemplate inv={inv} settings={settings} profile={profile} />}
+        {currentTemplate === 'COMPACT' ? <CompactTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
+         currentTemplate === 'DETAILED' ? <DetailedTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
+         currentTemplate === 'CLASSIC' ? <ClassicTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
+         currentTemplate === 'MODERN' ? <ModernTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
+         currentTemplate === 'PREMIUM' ? <PremiumTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
+         currentTemplate === 'ELEGANT' ? <ElegantTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
+         currentTemplate === 'BOLD' ? <BoldTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
+         currentTemplate === 'NATURE' ? <NatureTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
+         currentTemplate === 'OCEAN' ? <OceanTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
+         currentTemplate === 'SUNSET' ? <SunsetTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
+         currentTemplate === 'CORPORATE' ? <CorporateTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
+          <StandardTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} />}
+          
+          {/* Watermark: Created by VyaparSetu */}
+          <div style={{
+            marginTop: 20,
+            paddingTop: 8,
+            borderTop: '1px dashed #E2E8F0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            fontSize: 10,
+            fontWeight: 600,
+            color: '#94A3B8',
+            letterSpacing: '0.5px',
+          }}>
+            <span>⚡ Created by</span>
+            <span style={{ color: '#2B5DC2', fontWeight: 800 }}>VyaparSetu</span>
+          </div>
         </div>
       </div>
 
@@ -157,147 +204,210 @@ function TotalsBlock({ inv, settings, c }: { inv: Invoice; settings: any; c: str
   const gstRates = [...new Set(inv.items.map(i => i.gstRate).filter(r => r > 0))].sort()
   const discountRatio = inv.subtotal > 0 ? Math.max(0, (inv.subtotal - inv.discountAmount) / inv.subtotal) : 1
   return (
-    <div style={{ borderTop: `2px solid ${c}`, marginTop: 12, paddingTop: 8, textAlign: 'right', fontSize: 13 }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 40, marginBottom: 3 }}>
-        <span style={{ color: '#666', fontSize: 12 }}>Taxable Amount:</span>
-        <span style={{ fontWeight: 600, minWidth: 80, textAlign: 'right' }}>{formatCurrency(inv.subtotal)}</span>
+    <div style={{
+      backgroundColor: '#F8FAFC',
+      border: `1.5px solid ${c}30`,
+      borderRadius: 8,
+      padding: '12px 16px',
+      minWidth: 260,
+      fontSize: 13,
+      boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+        <span style={{ color: '#64748B', fontSize: 12 }}>Subtotal (Taxable):</span>
+        <span style={{ fontWeight: 600, color: '#334155' }}>{formatCurrency(inv.subtotal)}</span>
       </div>
       {inv.discountAmount > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 40, marginBottom: 3 }}>
-          <span style={{ color: '#666', fontSize: 12 }}>Discount:</span>
-          <span style={{ fontWeight: 600, minWidth: 80, textAlign: 'right', color: '#e53935' }}>-{formatCurrency(inv.discountAmount)}</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+          <span style={{ color: '#64748B', fontSize: 12 }}>Total Discount:</span>
+          <span style={{ fontWeight: 600, color: '#EF4444' }}>-{formatCurrency(inv.discountAmount)}</span>
         </div>
       )}
       {settings.enableGst && gstRates.map(r => (
         <React.Fragment key={r}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 40, marginBottom: 2 }}>
-            <span style={{ color: '#666', fontSize: 11 }}>CGST @{r / 2}%:</span>
-            <span style={{ fontWeight: 600, minWidth: 80, textAlign: 'right', fontSize: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+            <span style={{ color: '#64748B', fontSize: 11 }}>CGST ({r / 2}%):</span>
+            <span style={{ fontWeight: 600, color: '#334155', fontSize: 12 }}>
               {formatCurrency(inv.items.reduce((s, i) => i.gstRate === r ? s + i.amount * i.gstRate / 200 * discountRatio : s, 0))}
             </span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 40, marginBottom: 2 }}>
-            <span style={{ color: '#666', fontSize: 11 }}>SGST @{r / 2}%:</span>
-            <span style={{ fontWeight: 600, minWidth: 80, textAlign: 'right', fontSize: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+            <span style={{ color: '#64748B', fontSize: 11 }}>SGST ({r / 2}%):</span>
+            <span style={{ fontWeight: 600, color: '#334155', fontSize: 12 }}>
               {formatCurrency(inv.items.reduce((s, i) => i.gstRate === r ? s + i.amount * i.gstRate / 200 * discountRatio : s, 0))}
             </span>
           </div>
         </React.Fragment>
       ))}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 40, marginTop: 4, borderTop: `2px solid ${c}`, paddingTop: 6 }}>
-        <span style={{ fontWeight: 700, fontSize: 15, color: c }}>Total:</span>
-        <span style={{ fontWeight: 800, fontSize: 17, color: c, minWidth: 80, textAlign: 'right' }}>{formatCurrency(inv.grandTotal)}</span>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        marginTop: 8,
+        borderTop: `2px solid ${c}`,
+        paddingTop: 8,
+        alignItems: 'center',
+      }}>
+        <span style={{ fontWeight: 800, fontSize: 15, color: c }}>Grand Total:</span>
+        <span style={{ fontWeight: 800, fontSize: 19, color: c }}>{formatCurrency(inv.grandTotal)}</span>
+      </div>
+      {inv.paidAmount > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 12, color: '#16A34A', fontWeight: 600 }}>
+          <span>Amount Paid:</span>
+          <span>{formatCurrency(inv.paidAmount)}</span>
+        </div>
+      )}
+      {inv.dueAmount > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2, fontSize: 12, color: '#DC2626', fontWeight: 700 }}>
+          <span>Balance Due:</span>
+          <span>{formatCurrency(inv.dueAmount)}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function BankFooter({ settings, profile, dueAmount, invoiceNo }: { settings: any; profile: any; dueAmount?: number; invoiceNo?: string }) {
+  const upiId = profile.upiId
+  const amt = dueAmount != null ? dueAmount : 0
+  const upiUri = upiId ? `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(profile.businessName || 'Business')}&am=${amt}&tn=${encodeURIComponent('Inv ' + (invoiceNo || ''))}` : ''
+  const qrUrl = upiUri ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(upiUri)}` : ''
+
+  return (
+    <div style={{ marginTop: 16, borderTop: '1px solid #E2E8F0', paddingTop: 12, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+      <div style={{ flex: 1, fontSize: 11, color: '#475569', lineHeight: 1.6 }}>
+        {settings.showBank && profile.bankName && (
+          <div style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 6, padding: '8px 12px', marginBottom: 8 }}>
+            <strong style={{ color: '#1E293B', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.5px' }}>🏦 Bank Details for Direct Transfer:</strong><br />
+            <span>Bank: <strong>{profile.bankName}</strong></span>
+            {profile.bankAccount ? <span> · A/C No: <strong>{profile.bankAccount}</strong></span> : ''}
+            {profile.bankIfsc ? <span> · IFSC: <strong>{profile.bankIfsc}</strong></span> : ''}
+          </div>
+        )}
+        {upiId && (
+          <div style={{ color: '#0F766E', fontWeight: 600 }}>
+            📱 <strong>UPI ID:</strong> {upiId}
+          </div>
+        )}
+        {settings.defaultTerms && (
+          <div style={{ marginTop: 8, fontSize: 10, color: '#64748B' }}>
+            <strong>Terms & Conditions:</strong><br />
+            {settings.defaultTerms}
+          </div>
+        )}
+      </div>
+
+      {upiId && amt > 0 && (
+        <div style={{ textAlign: 'center', backgroundColor: '#F0FDFA', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #0D948840', flexShrink: 0 }}>
+          <img src={qrUrl} alt="UPI QR Code" style={{ width: 90, height: 90, display: 'block', margin: '0 auto', borderRadius: 4 }} />
+          <div style={{ fontSize: 10, fontWeight: 800, color: '#0D9488', marginTop: 4 }}>Scan & Pay ₹{amt.toLocaleString()}</div>
+          <div style={{ fontSize: 8, color: '#64748B' }}>GPay / PhonePe / Paytm / BHIM</div>
+        </div>
+      )}
+
+      {/* Authorized Signatory Box */}
+      <div style={{ textAlign: 'center', minWidth: 160, alignSelf: 'flex-end', marginLeft: 16 }}>
+        <div style={{ height: 40, borderBottom: '1px solid #CBD5E1', marginBottom: 4 }} />
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#334155' }}>For {profile.businessName || 'Business'}</div>
+        <div style={{ fontSize: 9, color: '#94A3B8' }}>(Authorized Signatory)</div>
       </div>
     </div>
   )
 }
 
-function BankFooter({ settings, profile }: { settings: any; profile: any }) {
-  return settings.showBank && profile.bankName ? (
-    <div style={{ marginTop: 12, fontSize: 10, color: '#888', borderTop: '1px solid #ddd', paddingTop: 8, lineHeight: 1.6 }}>
-      <strong>Bank Details:</strong><br />
-      {profile.bankName}{profile.bankAccount ? ` | A/C: ${profile.bankAccount}` : ''}{profile.bankIfsc ? ` | IFSC: ${profile.bankIfsc}` : ''}
-    </div>
-  ) : null
-}
-
 function StandardTemplate({ inv, settings, profile }: { inv: Invoice; settings: any; profile: any }) {
   const c = TC(settings.themeColor)
+  const party = DB.parties.byId(inv.partyId)
+  const partyAddress = inv.shippingAddress || party?.address
   const gstRates = [...new Set(inv.items.map(i => i.gstRate).filter(r => r > 0))].sort()
+
   return (
     <div>
+      {/* Header Container */}
       <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `3px solid ${c}`, paddingBottom: 14, marginBottom: 16 }}>
         <div style={{ flex: 1 }}>
-          <h2 style={{ margin: 0, color: c, fontSize: 22, fontWeight: 800 }}>{profile.businessName || 'Your Business'}</h2>
-          <div style={{ fontSize: 11, color: '#666', marginTop: 4, whiteSpace: 'pre-line', lineHeight: 1.5 }}>{profile.address}</div>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 6, fontSize: 10, color: '#888' }}>
-            {profile.phone && <span>📞 {profile.phone}</span>}
-            {profile.email && <span>✉ {profile.email}</span>}
+          <h2 style={{ margin: 0, color: c, fontSize: 24, fontWeight: 800, letterSpacing: '-0.5px' }}>{profile.businessName || 'Your Business Name'}</h2>
+          <div style={{ fontSize: 11, color: '#475569', marginTop: 4, whiteSpace: 'pre-line', lineHeight: 1.5 }}>{profile.address}</div>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 6, fontSize: 11, color: '#64748B' }}>
+            {profile.phone && <span>📞 <strong>{profile.phone}</strong></span>}
+            {profile.email && <span>✉ <strong>{profile.email}</strong></span>}
+            {profile.ownerName && <span>Proprietor: <strong>{profile.ownerName}</strong></span>}
           </div>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 10, color: '#888' }}>
-            {profile.gstin && <span>GSTIN: {profile.gstin}</span>}
-            {profile.pan && <span>PAN: {profile.pan}</span>}
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 11, color: '#64748B', marginTop: 2 }}>
+            {profile.gstin && <span style={{ backgroundColor: c + '15', color: c, padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>GSTIN: {profile.gstin}</span>}
+            {profile.pan && <span>PAN: <strong>{profile.pan}</strong></span>}
           </div>
-          {profile.ownerName && <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>Proprietor: {profile.ownerName}</div>}
         </div>
-        <div style={{ textAlign: 'right', minWidth: 200 }}>
-          <div style={{ fontSize: 11, color: c, textTransform: 'uppercase', letterSpacing: 2, fontWeight: 700, border: `2px solid ${c}`, display: 'inline-block', padding: '4px 14px', borderRadius: 2, marginBottom: 8 }}>
+
+        <div style={{ textAlign: 'right', minWidth: 210 }}>
+          <div style={{
+            fontSize: 12, color: '#fff', backgroundColor: c, textTransform: 'uppercase',
+            letterSpacing: 1.5, fontWeight: 800, display: 'inline-block',
+            padding: '6px 16px', borderRadius: 4, marginBottom: 8,
+            boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+          }}>
             {settings.enableGst ? 'Tax Invoice' : 'Invoice'}
           </div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: c, letterSpacing: 1 }}>{settings.prefix}-{inv.invoiceNo.replace(/^[A-Z]+-/, '')}</div>
-          <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>Date: {formatDate(inv.date)}</div>
-          {inv.dueDate && <div style={{ fontSize: 11, color: '#666' }}>Due Date: {formatDate(inv.dueDate)}</div>}
-          {inv.transportDetails && <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>Transport: {inv.transportDetails}</div>}
+          <div style={{ fontSize: 16, fontWeight: 800, color: c, letterSpacing: 0.5 }}>#{inv.invoiceNo}</div>
+          <div style={{ fontSize: 11, color: '#475569', marginTop: 4 }}>Date: <strong>{formatDate(inv.date)}</strong></div>
+          {inv.dueDate && <div style={{ fontSize: 11, color: '#475569' }}>Due Date: <strong>{formatDate(inv.dueDate)}</strong></div>}
+          <div style={{ marginTop: 6 }}>
+            <span style={{
+              fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 12,
+              backgroundColor: inv.paymentStatus === 'PAID' ? '#DCFCE7' : inv.paymentStatus === 'PARTIAL' ? '#FEF3C7' : '#FEE2E2',
+              color: inv.paymentStatus === 'PAID' ? '#166534' : inv.paymentStatus === 'PARTIAL' ? '#92400E' : '#991B1B',
+            }}>
+              {inv.paymentStatus}
+            </span>
+          </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, padding: '10px 12px', backgroundColor: '#f5f5f5', borderRadius: 4 }}>
-        <div style={{ fontSize: 13 }}>
-          <strong style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>Bill To</strong><br />
-          <span style={{ fontWeight: 600, fontSize: 14 }}>{inv.partyName}</span>
-          {inv.shippingAddress && <div style={{ fontSize: 11, color: '#666', marginTop: 2, whiteSpace: 'pre-line' }}>{inv.shippingAddress}</div>}
+      {/* Bill To & Details Container */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, padding: '12px 14px', backgroundColor: '#F8FAFC', borderRadius: 6, border: '1px solid #E2E8F0' }}>
+        <div style={{ fontSize: 13, flex: 1 }}>
+          <div style={{ fontSize: 10, color: '#64748B', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 2 }}>Bill To (Customer)</div>
+          <span style={{ fontWeight: 800, fontSize: 15, color: '#1E293B' }}>{inv.partyName}</span>
+          {partyAddress && <div style={{ fontSize: 11, color: '#475569', marginTop: 3, whiteSpace: 'pre-line' }}>📍 {partyAddress}</div>}
+          {party?.phone && <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>📞 {party.phone}</div>}
+          {party?.gstin && <div style={{ fontSize: 10, fontWeight: 700, color: c, marginTop: 4 }}>GSTIN: {party.gstin}</div>}
         </div>
-        <div style={{ fontSize: 11, textAlign: 'right', color: '#666' }}>
-          {inv.type === 'PURCHASE' && <div><strong>Type:</strong> Purchase</div>}
-          {inv.notes && <div style={{ marginTop: 4, fontStyle: 'italic' }}>{inv.notes}</div>}
-        </div>
+        {inv.notes && (
+          <div style={{ fontSize: 11, textAlign: 'right', color: '#64748B', maxWidth: 220 }}>
+            <strong>Notes:</strong><br />{inv.notes}
+          </div>
+        )}
       </div>
 
+      {/* Line Items Table */}
       <InvoiceTable items={inv.items} showGst={settings.enableGst} />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
-        <div style={{ fontSize: 10, color: '#888', maxWidth: '50%' }}>
-          <strong>Amount Chargeable (in words):</strong><br />
-          <span style={{ fontWeight: 600, color: '#333', fontSize: 11 }}>{numberToWords(inv.grandTotal)}</span>
+      {/* Totals & Tax Summary */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, gap: 16 }}>
+        <div style={{ fontSize: 11, color: '#475569', flex: 1 }}>
+          <div style={{ backgroundColor: '#F8FAFC', padding: '10px 12px', borderRadius: 6, border: '1px solid #E2E8F0' }}>
+            <strong style={{ color: '#1E293B', fontSize: 11 }}>Amount Chargeable (in words):</strong><br />
+            <span style={{ fontWeight: 700, color: c, fontSize: 12 }}>{numberToWords(inv.grandTotal)}</span>
+          </div>
+
           {gstRates.length > 0 && (
-            <div style={{ marginTop: 6, lineHeight: 1.5 }}>
-              <strong>GST Summary:</strong><br />
+            <div style={{ marginTop: 10, fontSize: 10, color: '#64748B', lineHeight: 1.6 }}>
+              <strong style={{ color: '#334155' }}>GST Rate Breakdown:</strong><br />
               {gstRates.map(r => {
                 const taxable = inv.items.filter(i => i.gstRate === r).reduce((s, i) => s + i.amount, 0)
                 const cgst = taxable * r / 200
                 const sgst = taxable * r / 200
                 return (
-                  <div key={r}>₹{formatCurrency(taxable)} @ {r}% | CGST: ₹{formatCurrency(cgst)} | SGST: ₹{formatCurrency(sgst)}</div>
+                  <div key={r}>• Taxable ₹{formatCurrency(taxable)} @ {r}% | CGST: ₹{formatCurrency(cgst)} | SGST: ₹{formatCurrency(sgst)}</div>
                 )
               })}
             </div>
           )}
         </div>
+
         <TotalsBlock inv={inv} settings={settings} c={c} />
       </div>
 
-      {settings.enableGst && (
-        <div style={{ marginTop: 12, fontSize: 9, color: '#999', borderTop: '1px solid #ddd', paddingTop: 8, lineHeight: 1.6 }}>
-          <strong>Declaration:</strong><br />
-          We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
-          {profile.gstin ? ` This is a computer generated document and does not require a physical signature under GST rules (GSTIN: ${profile.gstin}).` : ''}
-        </div>
-      )}
-
-      <BankFooter settings={settings} profile={profile} />
-
-      {settings.defaultTerms && (
-        <div style={{ marginTop: 8, fontSize: 10, color: '#888', borderTop: '1px solid #ddd', paddingTop: 8, whiteSpace: 'pre-line', lineHeight: 1.5 }}>
-          <strong>Terms & Conditions:</strong><br />
-          {settings.defaultTerms}
-        </div>
-      )}
-
-      {settings.showSignature && (
-        <div style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ minWidth: 160, borderTop: '1px solid #333', paddingTop: 4, fontSize: 11, color: '#666' }}>Customer Signature</div>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ minWidth: 160, borderTop: '1px solid #333', paddingTop: 4, fontSize: 11, color: '#666' }}>Authorised Signatory</div>
-            <div style={{ fontSize: 10, color: '#999', marginTop: 1 }}>{profile.ownerName || profile.businessName || ''}</div>
-          </div>
-        </div>
-      )}
-
-      <div style={{ marginTop: 12, textAlign: 'center', fontSize: 9, color: '#bbb' }}>
-        This is a computer generated invoice | Generated via Vyapar Setu
-      </div>
+      <BankFooter settings={settings} profile={profile} dueAmount={inv.dueAmount} invoiceNo={inv.invoiceNo} />
     </div>
   )
 }
@@ -399,7 +509,7 @@ function DetailedTemplate({ inv, settings, profile }: { inv: Invoice; settings: 
         </tbody>
       </table>
       <TotalsBlock inv={inv} settings={settings} c={c} />
-      <BankFooter settings={settings} profile={profile} />
+      <BankFooter settings={settings} profile={profile} dueAmount={inv.dueAmount} invoiceNo={inv.invoiceNo} />
       {settings.defaultTerms && <div style={{ fontSize: 10, color: '#888', marginTop: 8, borderTop: '1px solid #ddd', paddingTop: 8, whiteSpace: 'pre-line' }}><strong>Terms:</strong> {settings.defaultTerms}</div>}
       {settings.showSignature && <div style={{ marginTop: 20, textAlign: 'right', fontSize: 11, color: '#666' }}>Authorised Signatory</div>}
     </div>
@@ -519,7 +629,7 @@ function PremiumTemplate({ inv, settings, profile }: { inv: Invoice; settings: a
           <span>Total:</span><span>{formatCurrency(inv.grandTotal)}</span>
         </div>
       </div>
-      <BankFooter settings={settings} profile={profile} />
+      <BankFooter settings={settings} profile={profile} dueAmount={inv.dueAmount} invoiceNo={inv.invoiceNo} />
       {settings.defaultTerms && <div style={{ fontSize: 10, color: '#888', marginTop: 8, borderTop: `1px solid ${gold}30`, paddingTop: 8, whiteSpace: 'pre-line' }}><strong>Terms:</strong> {settings.defaultTerms}</div>}
       {settings.showSignature && <div style={{ marginTop: 24, textAlign: 'right' }}><div style={{ borderTop: `1px solid ${dark}`, paddingTop: 4, minWidth: 140, display: 'inline-block', fontSize: 11, color: dark }}>Authorised Signatory</div></div>}
     </div>
@@ -552,7 +662,7 @@ function ElegantTemplate({ inv, settings, profile }: { inv: Invoice; settings: a
       </div>
       <InvoiceTable items={inv.items} showGst={settings.enableGst} />
       <TotalsBlock inv={inv} settings={settings} c={primary} />
-      <BankFooter settings={settings} profile={profile} />
+      <BankFooter settings={settings} profile={profile} dueAmount={inv.dueAmount} invoiceNo={inv.invoiceNo} />
       {settings.defaultTerms && <div style={{ fontSize: 10, color: '#999', marginTop: 8, borderTop: '1px solid #f0e0d0', paddingTop: 8, whiteSpace: 'pre-line' }}><strong>Terms:</strong> {settings.defaultTerms}</div>}
     </div>
   )
@@ -637,7 +747,7 @@ function NatureTemplate({ inv, settings, profile }: { inv: Invoice; settings: an
         <TotalsBlock inv={inv} settings={settings} c={green} />
       </div>
       <div style={{ padding: '10px 16px', backgroundColor: light, borderTop: '1px solid #c8e6c9', fontSize: 10, color: '#888' }}>
-        <BankFooter settings={settings} profile={profile} />
+        <BankFooter settings={settings} profile={profile} dueAmount={inv.dueAmount} invoiceNo={inv.invoiceNo} />
         {settings.defaultTerms && <div style={{ marginTop: 4, whiteSpace: 'pre-line' }}><strong>Terms:</strong> {settings.defaultTerms}</div>}
       </div>
     </div>
@@ -668,7 +778,7 @@ function OceanTemplate({ inv, settings, profile }: { inv: Invoice; settings: any
         <TotalsBlock inv={inv} settings={settings} c={blue} />
       </div>
       <div style={{ padding: '10px 16px', borderTop: `1px solid ${light}`, fontSize: 10, color: '#999' }}>
-        <BankFooter settings={settings} profile={profile} />
+        <BankFooter settings={settings} profile={profile} dueAmount={inv.dueAmount} invoiceNo={inv.invoiceNo} />
         {settings.defaultTerms && <div style={{ marginTop: 4, whiteSpace: 'pre-line' }}><strong>Terms:</strong> {settings.defaultTerms}</div>}
       </div>
     </div>
@@ -705,7 +815,7 @@ function SunsetTemplate({ inv, settings, profile }: { inv: Invoice; settings: an
           </div>
         </div>
       </div>
-      <BankFooter settings={settings} profile={profile} />
+      <BankFooter settings={settings} profile={profile} dueAmount={inv.dueAmount} invoiceNo={inv.invoiceNo} />
       {settings.defaultTerms && <div style={{ fontSize: 10, color: '#999', padding: '8px 16px', borderTop: '1px solid #fce4ec' }}>{settings.defaultTerms}</div>}
     </div>
   )
@@ -741,7 +851,7 @@ function CorporateTemplate({ inv, settings, profile }: { inv: Invoice; settings:
           </div>
         </div>
       </div>
-      <BankFooter settings={settings} profile={profile} />
+      <BankFooter settings={settings} profile={profile} dueAmount={inv.dueAmount} invoiceNo={inv.invoiceNo} />
       {settings.defaultTerms && <div style={{ fontSize: 9, color: '#aaa', padding: '6px 14px', borderTop: `1px solid ${light}`, marginTop: 6 }}>{settings.defaultTerms}</div>}
     </div>
   )

@@ -1,7 +1,7 @@
 export type DocType = 'SALE' | 'PURCHASE' | 'SALE_ORDER' | 'PURCHASE_ORDER' | 'ESTIMATE' | 'SALE_RETURN' | 'PURCHASE_RETURN' | 'CHALLAN' | 'PAYMENT_IN' | 'PAYMENT_OUT'
 
 export interface Party {
-  id: string; name: string; phone: string; email?: string
+  id: string; name: string; phone: string; email?: string; address?: string
   gstin?: string; type: 'CUSTOMER' | 'SUPPLIER' | 'BOTH'
   openingBalance: number; balanceType: 'DEBIT' | 'CREDIT'
   creditLimit: number; creditDays: number; group?: string
@@ -43,8 +43,10 @@ export interface Invoice {
   paymentStatus: 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE' | 'DRAFT'
   paidAmount: number; dueAmount: number
   date: string; dueDate?: string; notes?: string
-  orderStatus?: 'OPEN' | 'CONFIRMED' | 'CONVERTED' | 'CANCELLED'
+  orderStatus?: 'OPEN' | 'CONFIRMED' | 'PARTIAL' | 'CONVERTED' | 'CANCELLED'
   convertedTo?: string
+  advancePaid?: number
+  expectedDeliveryDate?: string
   shippingAddress?: string; transportDetails?: string
   additionalCharges?: number; roundOff?: number
   gstr2Matched?: boolean
@@ -82,6 +84,7 @@ export interface InvoiceSettings {
   showSignature: boolean; paperSize: string
   currency: string; currencySymbol: string
   roundOff: boolean; lateFeePercent: number
+  allowNegativeStock?: boolean
 }
 
 export interface CrmLead {
@@ -94,7 +97,7 @@ export interface BusinessProfile {
   businessName: string; ownerName: string; phone: string; email: string
   address: string; gstin: string; pan: string
   bankName: string; bankAccount: string; bankIfsc: string; signature: string
-  businessType?: string
+  upiId?: string; businessType?: string
 }
 
 export interface StockAdjustment {

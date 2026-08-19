@@ -1,29 +1,55 @@
 export const Colors = {
-  primary: '#1B5E20',
-  primaryLight: '#4CAF50',
-  primaryDark: '#0D3B11',
-  secondary: '#F57C00',
-  secondaryLight: '#FFB74D',
-  accent: '#1565C0',
-  accentLight: '#42A5F5',
-  background: '#F5F5F5',
-  surface: '#FFFFFF',
-  error: '#D32F2F',
-  errorLight: '#FFCDD2',
-  success: '#388E3C',
-  successLight: '#C8E6C9',
-  warning: '#F57C00',
-  warningLight: '#FFE0B2',
-  info: '#1976D2',
-  infoLight: '#BBDEFB',
-  textPrimary: '#212121',
-  textSecondary: '#757575',
+  // Brand & Primary Actions
+  primary: '#0D9488',          // Header, active nav icon, links
+  primaryLight: '#DFF7F0',     // Light mint tint
+  primaryDark: '#0F3D3A',      // Dark teal header/banner background
+
+  // Secondary CTA & Accent
+  secondary: '#7C3AED',        // Secondary CTA (primary buttons like "New sale")
+  secondaryLight: '#EDE9FE',   // Pastel violet chip
+  accent: '#7C3AED',           // Accent violet
+  accentLight: '#EDE9FE',      // Accent light violet tint
+
+  // Success / FAB
+  success: '#059669',          // FAB & success green
+  successLight: '#E4F8E1',     // "To collect" bg tint
+  successText: '#4CA82F',      // "To collect" text
+
+  // Error / Expense / To Pay
+  error: '#E1416B',            // Expense / To pay red
+  errorLight: '#FFE9EE',       // "To pay" bg tint
+
+  // Warning / Low Stock
+  warning: '#D97706',          // Warning / Low stock amber
+  warningLight: '#FEF3C7',     // Pastel amber chip
+
+  // Promo Banner
+  bannerBg: '#0F3D3A',         // Dark teal background
+  bannerAccent: '#6EE7C8',     // Mint accent icon
+
+  // Info & Status Badges
+  info: '#0D9488',            // Info teal
+  infoLight: '#DFF7F0',       // Info light mint tint
+
+  // Pastel Action Chips
+  roseLight: '#FFE4E6',
+  indigoLight: '#E0E7FF',
+  violetLight: '#EDE9FE',
+  mintLight: '#D1FAE5',
+
+  // Layout & Backgrounds
+  background: '#F4FBF8',       // Soft mint page background
+  surface: '#FFFFFF',          // Crisp white card surface
+  textPrimary: '#111827',      // Primary body text
+  textSecondary: '#6B7280',    // Secondary body text
+  textDisabled: '#9CA3AF',     // Inactive nav icon / disabled text
   textLight: '#FFFFFF',
-  textDisabled: '#BDBDBD',
-  border: '#E0E0E0',
-  divider: '#EEEEEE',
-  overlay: 'rgba(0,0,0,0.5)',
-  statusBar: '#0D3B11',
+
+  // Borders & Dividers
+  border: '#E5E7EB',          // 0.5-1px light card border
+  divider: '#F3F4F6',
+  overlay: 'rgba(15, 61, 58, 0.5)',
+  statusBar: '#0D9488',
 };
 
 export const DarkColors = {

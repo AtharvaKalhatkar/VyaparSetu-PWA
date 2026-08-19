@@ -27,6 +27,14 @@ class QueueManager {
     useSyncStore.getState().incrementPending();
   }
 
+  async removeByEntityIds(idsToRemove: string[]): Promise<void> {
+    if (idsToRemove.length === 0) return;
+    const queue = await this.getQueue();
+    const updatedQueue = queue.filter(item => !idsToRemove.includes(item.entityId));
+    await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(updatedQueue));
+    useSyncStore.getState().setPendingCount(updatedQueue.length);
+  }
+
   async removeFromQueue(index: number): Promise<void> {
     const queue = await this.getQueue();
     queue.splice(index, 1);
@@ -49,6 +57,7 @@ class NetworkMonitor {
   private unsubscribe: (() => void) | null = null;
 
   start(): void {
+    this.stop();
     this.unsubscribe = NetInfo.addEventListener(state => {
       const isOnline = !!(state.isConnected && state.isInternetReachable !== false);
       useSyncStore.getState().setOnline(isOnline);
@@ -140,22 +149,15 @@ class SyncManager {
       const result: SyncResult = await ApiService.sync.syncBatch(batchRequest);
 
       if (result.success) {
-        for (let i = queue.length - 1; i >= 0; i--) {
-          if (result.processedIds.includes(queue[i].entityId)) {
-            await this.queueManager.removeFromQueue(i);
-          }
-        }
-
+        const idsToRemove = [...result.processedIds];
         if (result.errors && result.errors.length > 0) {
           for (const error of result.errors) {
             if (error.retryCount >= 3) {
-              const idx = queue.findIndex(p => p.entityId === error.entityId);
-              if (idx >= 0) {
-                await this.queueManager.removeFromQueue(idx);
-              }
+              idsToRemove.push(error.entityId);
             }
           }
         }
+        await this.queueManager.removeByEntityIds(idsToRemove);
 
         if (result.serverChanges && result.serverChanges.length > 0) {
           await this.applyServerChanges(result.serverChanges);

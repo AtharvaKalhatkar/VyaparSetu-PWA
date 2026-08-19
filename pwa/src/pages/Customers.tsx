@@ -9,18 +9,26 @@ import { useBatchSelect, BatchActionBar } from '../utils/useBatchSelect'
 import { ExportBar } from '../utils/ExportBar'
 
 export function Customers({ onNavigate }: { onNavigate: (p: string) => void }) {
+  const [filterTab, setFilterTab] = useState<'ALL' | 'CUSTOMERS' | 'SUPPLIERS'>('ALL')
   const [search, setSearch] = useState('')
   const [batchMode, setBatchMode] = useState(false)
   const [rev, bumpRev] = useReducer(x => x + 1, 0)
   const ready = useDelayedRender(200)
 
-  const allCustomers = useMemo(() => DB.parties.list().filter(p => p.type !== 'SUPPLIER'), [rev])
-  const filtered = useFuzzySearch(allCustomers, search, ['name', 'phone', 'email', 'gstin'], 5, 200)
+  const allPartiesList = useMemo(() => DB.parties.list(), [rev])
+
+  const displayedParties = useMemo(() => {
+    if (filterTab === 'CUSTOMERS') return allPartiesList.filter(p => p.type === 'CUSTOMER' || p.type === 'BOTH' || !p.type)
+    if (filterTab === 'SUPPLIERS') return allPartiesList.filter(p => p.type === 'SUPPLIER' || p.type === 'BOTH')
+    return allPartiesList
+  }, [allPartiesList, filterTab])
+
+  const filtered = useFuzzySearch(displayedParties, search, ['name', 'phone', 'email', 'gstin'], 5, 200)
 
   const batch = useBatchSelect(filtered)
 
   const handleBatchDelete = () => {
-    if (!confirm(`Delete ${batch.selectedCount} customer(s)? This cannot be undone.`)) return
+    if (!confirm(`Delete ${batch.selectedCount} party(ies)? This cannot be undone.`)) return
     batch.selectedIds.forEach(id => DB.parties.delete(id))
     batch.clearSelection()
     setBatchMode(false); bumpRev()
@@ -28,13 +36,34 @@ export function Customers({ onNavigate }: { onNavigate: (p: string) => void }) {
 
   return (
     <div style={{ padding: Spacing.lg, paddingBottom: 80 }}>
+      {/* Party Category Tabs */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: Spacing.md }}>
+        {[
+          { key: 'ALL', label: `All Parties (${allPartiesList.length})` },
+          { key: 'CUSTOMERS', label: `Customers (${allPartiesList.filter(p => p.type !== 'SUPPLIER').length})` },
+          { key: 'SUPPLIERS', label: `Suppliers (${allPartiesList.filter(p => p.type === 'SUPPLIER' || p.type === 'BOTH').length})` },
+        ].map(tabItem => {
+          const active = filterTab === tabItem.key
+          return (
+            <button key={tabItem.key} onClick={() => setFilterTab(tabItem.key as any)} style={{
+              flex: 1, padding: '8px 4px', borderRadius: 8, border: active ? `1px solid ${Colors.primary}` : `1px solid ${Colors.border}`,
+              backgroundColor: active ? Colors.primaryLight : Colors.surface,
+              color: active ? Colors.primary : Colors.textSecondary,
+              fontWeight: active ? 700 : 500, fontSize: 12, cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s',
+            }}>
+              {tabItem.label}
+            </button>
+          )
+        })}
+      </div>
+
       <div style={{ display: 'flex', gap: Spacing.sm, marginBottom: Spacing.md }}>
         <div style={{ position: 'relative', flex: 1 }}>
           <span style={{ position: 'absolute', left: 12, top: 10, display: 'flex', alignItems: 'center', color: Colors.textDisabled }}><Icons.Search size={16} /></span>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search customers..." style={{ ...s.searchBox, paddingLeft: 36 }} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search parties by name, phone, gstin..." style={{ ...s.searchBox, paddingLeft: 36 }} />
         </div>
-        <ExportBar title="customers"
-          xlsData={{ name: 'Customers', headers: ['Name', 'Phone', 'Email', 'GSTIN', 'Address'], rows: allCustomers.map(c => [c.name, c.phone || '', c.email || '', c.gstin || '', c.shippingAddress || '']) }}
+        <ExportBar title="parties"
+          xlsData={{ name: 'Parties', headers: ['Name', 'Type', 'Phone', 'Email', 'GSTIN', 'Address'], rows: displayedParties.map(c => [c.name, c.type || 'CUSTOMER', c.phone || '', c.email || '', c.gstin || '', c.shippingAddress || '']) }}
         />
         <button onClick={() => { setBatchMode(!batchMode); batch.clearSelection() }} style={{
           padding: '8px 12px', border: `1px solid ${batchMode ? Colors.error : Colors.primary}30`, borderRadius: 6,
@@ -74,14 +103,41 @@ export function Customers({ onNavigate }: { onNavigate: (p: string) => void }) {
                 </div>
               </div>
             )}
-            <div style={s.listStrip(Colors.accent)} />
+            <div style={s.listStrip(c.gstin ? Colors.primary : Colors.accent)} />
             <div style={{ ...s.listBody, flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
-              <div style={s.avatar(c.name.charAt(0), Colors.accent)}>{c.name.charAt(0)}</div>
+              <div style={s.avatar(c.name.charAt(0), c.gstin ? Colors.primary : Colors.accent)}>{c.name.charAt(0)}</div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 14, color: Colors.textPrimary }}>{c.name}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: Colors.textPrimary }}>{c.name}</div>
+                  {c.gstin && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, backgroundColor: Colors.primaryLight, color: Colors.primary, fontWeight: 700 }}>GST</span>}
+                </div>
                 <div style={{ fontSize: 11, color: Colors.textSecondary }}>{c.phone}{c.email ? ' · ' + c.email : ''}</div>
               </div>
-              <span style={{ color: Colors.textDisabled, fontSize: 18 }}>›</span>
+
+              {(() => {
+                const bal = DB.ledger.forParty(c.id).reduce((b, e) => {
+                  if (e.type === 'SALE') return b + e.amount
+                  if (e.type === 'PURCHASE') return b - e.amount
+                  if (e.type === 'RECEIPT') return b - e.amount
+                  if (e.type === 'PAYMENT') return b + e.amount
+                  return b
+                }, 0)
+                const isCollect = bal > 0
+                const isPay = bal < 0
+                const color = isCollect ? Colors.success : isPay ? Colors.error : Colors.textSecondary
+                const bg = isCollect ? Colors.successLight : isPay ? Colors.errorLight : Colors.surfaceVariant
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color, backgroundColor: bg, padding: '3px 8px', borderRadius: 6 }}>
+                      {isCollect ? `Rec: ₹${bal.toLocaleString()}` : isPay ? `Pay: ₹${Math.abs(bal).toLocaleString()}` : 'Settled'}
+                    </div>
+                    <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
+                      <button onClick={() => onNavigate('party-ledger?partyId=' + c.id)} title="View Ledger" style={{ background: 'none', border: 'none', color: Colors.primary, cursor: 'pointer', fontSize: 11, padding: 2 }}>Statement →</button>
+                    </div>
+                  </div>
+                )
+              })()}
+              <span style={{ color: Colors.textDisabled, fontSize: 18, marginLeft: 4 }}>›</span>
             </div>
           </div>
         ))

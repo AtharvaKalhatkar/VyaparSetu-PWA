@@ -118,9 +118,15 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
     ? (lineTotalAfterDiscount * parseFloat(discountValue || '0')) / 100
     : parseFloat(discountValue || '0');
   const taxableAmount = Math.max(0, lineTotalAfterDiscount - discountAmount);
-  const cgstTotal = lineItems.reduce((sum, item) => sum + item.cgst, 0);
-  const sgstTotal = lineItems.reduce((sum, item) => sum + item.sgst, 0);
-  const igstTotal = lineItems.reduce((sum, item) => sum + item.igst, 0);
+  
+  const discountFactor = lineTotalAfterDiscount > 0 ? (taxableAmount / lineTotalAfterDiscount) : 1;
+  const rawCgst = lineItems.reduce((sum, item) => sum + item.cgst, 0);
+  const rawSgst = lineItems.reduce((sum, item) => sum + item.sgst, 0);
+  const rawIgst = lineItems.reduce((sum, item) => sum + item.igst, 0);
+  
+  const cgstTotal = Math.round(rawCgst * discountFactor * 100) / 100;
+  const sgstTotal = Math.round(rawSgst * discountFactor * 100) / 100;
+  const igstTotal = Math.round(rawIgst * discountFactor * 100) / 100;
   const taxAmount = cgstTotal + sgstTotal + igstTotal;
   const grandTotal = taxableAmount + taxAmount;
 

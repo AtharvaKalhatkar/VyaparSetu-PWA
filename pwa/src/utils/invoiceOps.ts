@@ -19,6 +19,12 @@ export function calcPartyBalance(partyId: string): number {
   }, 0)
 }
 
+export function toBaseQty(item: Item, quantity: number, unit: string): number {
+  if (!unit || unit === item.unit) return quantity
+  const conv = item.units?.find(u => u.unitName === unit || u.unitId === unit)?.conversionRate || 1
+  return quantity * conv
+}
+
 /**
  * Apply stock changes for invoice items.
  * For SALE: deduct stock. For PURCHASE: add stock.
@@ -36,8 +42,7 @@ export function applyStockChanges(
   invoiceItems.forEach(line => {
     const item = itemMap.get(line.itemId)
     if (!item) return
-    const conv = item.units?.find(u => u.unitName === line.unit)?.conversionRate || 1
-    const baseQty = line.unit === item.unit ? line.quantity : line.quantity * conv
+    const baseQty = toBaseQty(item, line.quantity, line.unit)
 
     if (type === 'PURCHASE') {
       item.currentStock = reverse
@@ -45,7 +50,7 @@ export function applyStockChanges(
         : item.currentStock + baseQty
     } else {
       const delta = reverse ? baseQty : -baseQty
-      item.currentStock = Math.max(0, item.currentStock + delta)
+      item.currentStock = item.currentStock + delta
     }
     itemMap.set(line.itemId, item)
   })
@@ -89,7 +94,7 @@ export function createLedgerEntry(
 }
 
 /**
- * Safely delete an invoice: reverses stock and creates a reversal ledger entry.
+ * Safely delete an invoice: reverses stock and removes original ledger entry.
  * Only reverses stock for actual SALE/PURCHASE invoices (not orders, estimates, challans, or returns).
  */
 export function deleteInvoiceWithReversal(invoiceId: string) {
@@ -103,16 +108,15 @@ export function deleteInvoiceWithReversal(invoiceId: string) {
   if (inv.docType === 'SALE' || inv.docType === 'PURCHASE') {
     // Standard invoices: reverse stock (sale → add back, purchase → subtract)
     applyStockChanges(stockItems, inv.type as 'SALE' | 'PURCHASE', true)
-    createLedgerEntry(
-      inv.partyId, inv.partyName,
-      inv.type === 'PURCHASE' ? 'PAYMENT' : 'RECEIPT',
-      inv.grandTotal, 'ADJUSTMENT', inv.invoiceNo,
-      `Invoice ${inv.invoiceNo} deleted (reversal)`, todayISO()
-    )
+    
+    // Remove original ledger entry matching invoice number
+    const partyEntries = DB.ledger.forParty(inv.partyId)
+    const originalEntry = partyEntries.find(e => e.reference === inv.invoiceNo)
+    if (originalEntry) {
+      DB.ledger.delete(originalEntry.id)
+    }
   } else if (inv.docType === 'SALE_RETURN' || inv.docType === 'PURCHASE_RETURN') {
     // Returns: undo the return by applying the FORWARD operation
-    // SALE_RETURN added stock → undo with SALE forward (deduct)
-    // PURCHASE_RETURN subtracted stock → undo with PURCHASE forward (add)
     applyStockChanges(stockItems, inv.type as 'SALE' | 'PURCHASE', false)
   }
   // Orders (SALE_ORDER/PURCHASE_ORDER), estimates (ESTIMATE), challans (CHALLAN):

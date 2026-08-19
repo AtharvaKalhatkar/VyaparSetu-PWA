@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react'
 import { Colors, Spacing, BorderRadius, Shadows } from '../theme'
 import { s } from '../utils/styles'
-import { DB } from '../utils/storage'
+import { DB, getStorageKey } from '../utils/storage'
+import { getActiveCompanyId } from '../utils/company'
 import { formatCurrency, formatDate, generateId } from '../utils/formatting'
 import { Icons } from '../utils/Icons'
 import * as XLSX from 'xlsx'
@@ -99,6 +100,10 @@ export function DataExport() {
       bankTransactions: DB.bankTransactions.list(),
       settings: DB.settings.get(),
       businessProfile: DB.businessProfile.get(),
+      stockTransfers: DB.stockTransfers.list(),
+      warehouses: DB.warehouses.list(),
+      priceLists: DB.priceLists.list(),
+      brands: DB.brands.list(),
     }
     const json = JSON.stringify(all, null, 2)
     downloadFile(json, `vyapar_backup_${new Date().toISOString().slice(0, 10)}.json`, 'application/json')
@@ -241,7 +246,7 @@ export function DataExport() {
     if (!importData) return
     const d = importData
     const save = (key: string, data: any) => {
-      try { localStorage.setItem('vs_' + key, JSON.stringify(data)) } catch (e) { console.error('restore failed for', key, e) }
+      try { localStorage.setItem(getStorageKey(key), JSON.stringify(data)) } catch (e) { console.error('restore failed for', key, e) }
     }
     if (d.invoices) save('invoices', d.invoices)
     if (d.parties) save('parties', d.parties)
@@ -253,6 +258,10 @@ export function DataExport() {
     if (d.stockAdjustments) save('stockAdj', d.stockAdjustments)
     if (d.bankAccounts) save('bankAccounts', d.bankAccounts)
     if (d.bankTransactions) save('bankTxns', d.bankTransactions)
+    if (d.stockTransfers) save('stockTransfers', d.stockTransfers)
+    if (d.warehouses) save('warehouses', d.warehouses)
+    if (d.priceLists) save('priceLists', d.priceLists)
+    if (d.brands) save('brands', d.brands)
     if (d.settings) save('settings', d.settings)
     if (d.businessProfile) save('bizProfile', d.businessProfile)
     setImportData(null); setPreview(null)
@@ -262,11 +271,14 @@ export function DataExport() {
 
   const handleClearAll = () => {
     try {
-      const keys = Object.keys(localStorage).filter(k => k.startsWith('vs_'))
+      const activeCompanyId = getActiveCompanyId()
+      const prefix = activeCompanyId ? `vs_${activeCompanyId}_` : 'vs_'
+      const preservedKeys = new Set(['vs_companies', 'vs_activeCompany', 'vs_loggedIn', 'vs_userName', 'vs_businessName', 'vs_userRole', 'vs_darkMode'])
+      const keys = Object.keys(localStorage).filter(k => k.startsWith(prefix) && !preservedKeys.has(k))
       keys.forEach(k => localStorage.removeItem(k))
     } catch (e) { console.error('clear all failed', e) }
     setClearStep(0)
-    alert('All data cleared successfully!')
+    alert('Current company data cleared successfully!')
   }
 
   let lastBackup: string | null = null
@@ -394,11 +406,11 @@ export function DataExport() {
           <Icons.Delete size={18} color={clearStep > 0 ? Colors.error : Colors.textSecondary} /> Clear Data
         </div>
         <div style={{ fontSize: 12, color: Colors.textSecondary, marginBottom: Spacing.md }}>
-          This will permanently erase all your business data including invoices, parties, items, and settings.
+          This will permanently erase data for the current company, including invoices, parties, items, and settings.
         </div>
         {clearStep === 0 && (
           <button onClick={() => setClearStep(1)} style={{ padding: '12px', backgroundColor: Colors.error, color: Colors.textLight, border: 'none', borderRadius: BorderRadius.sm, fontSize: 14, fontWeight: 600, cursor: 'pointer', width: '100%' }}>
-            Clear All Data
+            Clear Current Company Data
           </button>
         )}
         {clearStep === 1 && (
@@ -408,7 +420,7 @@ export function DataExport() {
             </div>
             <div style={{ display: 'flex', gap: Spacing.sm }}>
               <button onClick={() => setClearStep(0)} style={{ flex: 1, padding: '12px', background: 'none', border: `1px solid ${Colors.border}`, borderRadius: BorderRadius.sm, fontSize: 13, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleClearAll} style={{ flex: 1, padding: '12px', backgroundColor: Colors.error, color: Colors.textLight, border: 'none', borderRadius: BorderRadius.sm, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Yes, Clear Everything</button>
+              <button onClick={handleClearAll} style={{ flex: 1, padding: '12px', backgroundColor: Colors.error, color: Colors.textLight, border: 'none', borderRadius: BorderRadius.sm, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Yes, Clear Company</button>
             </div>
           </div>
         )}

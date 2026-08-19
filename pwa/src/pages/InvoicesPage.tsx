@@ -37,6 +37,7 @@ function groupLabel(dateStr: string): string {
 export function InvoicesPage({ onNavigate }: { onNavigate: (p: string) => void }) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'ALL' | 'PAID' | 'PENDING' | 'PARTIAL'>('ALL')
+  const [typeFilter, setTypeFilter] = useState<'ALL' | 'SALE' | 'PURCHASE'>('ALL')
   const [dateFilter, setDateFilter] = useState('')
   const [batchMode, setBatchMode] = useState(false)
   const [rev, bumpRev] = useReducer(x => x + 1, 0)
@@ -44,16 +45,20 @@ export function InvoicesPage({ onNavigate }: { onNavigate: (p: string) => void }
   const { defaultOption, saveDefault } = useDefaultShareOption()
   const listRef = useRef<HTMLDivElement>(null)
 
+  // Filter strictly to Tax/Billing Invoices (excluding SALE_ORDER, PURCHASE_ORDER, ESTIMATE, CHALLAN)
   const allInvoices = useMemo(() =>
-    [...DB.invoices.list()].sort((a, b) => b.date.localeCompare(a.date)),
+    [...DB.invoices.list()]
+      .filter(i => (!i.docType || i.docType === 'SALE' || i.docType === 'PURCHASE'))
+      .sort((a, b) => b.date.localeCompare(a.date)),
   [rev])
 
   const statusFiltered = useMemo(() => {
     let list = allInvoices
+    if (typeFilter !== 'ALL') list = list.filter(i => i.type === typeFilter || i.docType === typeFilter)
     if (filter !== 'ALL') list = list.filter(i => i.paymentStatus === filter)
     if (dateFilter) list = list.filter(i => i.date === dateFilter)
     return list
-  }, [allInvoices, filter, dateFilter])
+  }, [allInvoices, typeFilter, filter, dateFilter])
 
   const invoices = useFuzzySearch(statusFiltered, search, ['invoiceNo', 'partyName'], 5, 500)
 
@@ -179,10 +184,17 @@ export function InvoicesPage({ onNavigate }: { onNavigate: (p: string) => void }
         />
       </div>
 
+      {/* Type Filter Bar (Sales vs Purchase) */}
+      <div style={s.toggleGroup}>
+        <button onClick={() => setTypeFilter('ALL')} style={s.toggle(typeFilter === 'ALL', Colors.primary)}>All Invoices</button>
+        <button onClick={() => setTypeFilter('SALE')} style={s.toggle(typeFilter === 'SALE', Colors.primary)}>Sale Invoices</button>
+        <button onClick={() => setTypeFilter('PURCHASE')} style={s.toggle(typeFilter === 'PURCHASE', Colors.warning)}>Purchase Invoices</button>
+      </div>
+
       <div style={{ display: 'flex', gap: 6, marginBottom: Spacing.md, flexWrap: 'wrap', alignItems: 'center' }}>
         {(['ALL', 'PAID', 'PENDING', 'PARTIAL'] as const).map(f => (
           <button key={f} onClick={() => setFilter(f)} style={s.chip(filter === f, f === 'ALL' ? Colors.primary : statusColor(f))}>
-            {f === 'ALL' ? 'All' : f}
+            {f === 'ALL' ? 'All Status' : f}
           </button>
         ))}
         <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value === dateFilter ? '' : e.target.value)} style={{ ...s.input, width: 140, padding: '6px 10px', fontSize: 12, marginLeft: 'auto' }} title="Filter by date" />
@@ -254,14 +266,14 @@ export function InvoicesPage({ onNavigate }: { onNavigate: (p: string) => void }
                   <div style={s.listStrip(statusColor(inv.paymentStatus))} />
                   <div style={{ ...s.listBody, gap: 2 }}>
                     <div style={{ ...s.spaceBetween }}>
-                      <span style={{ fontWeight: 700, fontSize: 14, color: Colors.textPrimary }}>#{inv.invoiceNo}</span>
+                      <span style={{ fontWeight: 800, fontSize: 15, color: Colors.textPrimary }}>{inv.partyName || 'Cash Customer'}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ fontWeight: 700, fontSize: 15, color: Colors.textPrimary }}>{formatCurrency(inv.grandTotal)}</span>
+                        <span style={{ fontWeight: 800, fontSize: 16, color: Colors.textPrimary }}>{formatCurrency(inv.grandTotal)}</span>
                         <ContextMenu trigger={<span style={{ padding: '4px', display: 'flex', color: Colors.textDisabled, cursor: 'pointer' }}><Icons.More size={18} /></span>}
                           items={[
                             { label: 'Duplicate', icon: <Icons.Document size={14} />, onClick: () => handleDuplicate(inv) },
-                            ...(inv.docType === 'SALE' ? [{ label: 'Receive Payment', icon: <Icons.Payment size={14} />, onClick: () => onNavigate('add-payment?id=' + inv.id), color: Colors.success }] : []),
-                            ...(inv.docType === 'PURCHASE' ? [{ label: 'Make Payment', icon: <Icons.Payment size={14} />, onClick: () => onNavigate('add-payment-out?id=' + inv.id), color: Colors.error }] : []),
+                            ...(inv.docType === 'SALE' || inv.type === 'SALE' ? [{ label: 'Receive Payment', icon: <Icons.Payment size={14} />, onClick: () => onNavigate('add-payment?id=' + inv.id), color: Colors.success }] : []),
+                            ...(inv.docType === 'PURCHASE' || inv.type === 'PURCHASE' ? [{ label: 'Make Payment', icon: <Icons.Payment size={14} />, onClick: () => onNavigate('add-payment-out?id=' + inv.id), color: Colors.error }] : []),
                             { label: 'Return', icon: <Icons.Refresh size={14} />, onClick: () => onNavigate('returns?sourceId=' + inv.id), color: Colors.warning },
                             { label: 'Delivery Challan', icon: <Icons.Truck size={14} />, onClick: () => handleChallan(inv), color: '#1565C0' },
                             { label: 'Share as PDF', icon: <Icons.Download size={14} />, onClick: () => onNavigate('invoice-view?id=' + inv.id) },
@@ -271,7 +283,13 @@ export function InvoicesPage({ onNavigate }: { onNavigate: (p: string) => void }
                       </div>
                     </div>
                     <div style={{ ...s.spaceBetween }}>
-                      <span style={{ fontSize: 12, color: Colors.textSecondary }}>{inv.partyName} · {formatDate(inv.date)}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontWeight: 700, fontSize: 12, color: Colors.textSecondary }}>#{inv.invoiceNo}</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, backgroundColor: (inv.type === 'PURCHASE' || inv.docType === 'PURCHASE') ? Colors.warning + '20' : Colors.primary + '15', color: (inv.type === 'PURCHASE' || inv.docType === 'PURCHASE') ? Colors.warning : Colors.primary }}>
+                          {(inv.type === 'PURCHASE' || inv.docType === 'PURCHASE') ? 'PURCHASE' : 'SALE'}
+                        </span>
+                        <span style={{ fontSize: 11, color: Colors.textDisabled }}>· {formatDate(inv.date)}</span>
+                      </div>
                       <span style={s.badge(statusColor(inv.paymentStatus))}>{inv.paymentStatus}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, fontSize: 12 }}>

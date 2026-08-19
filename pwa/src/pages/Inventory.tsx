@@ -82,10 +82,21 @@ export function Inventory({ onNavigate }: { onNavigate: (p: string) => void }) {
               <div style={s.listStrip(stockColor)} />
               <div style={s.listBody}>
                 <div style={{ ...s.spaceBetween }}>
-                  <span style={{ fontWeight: 600, fontSize: 14, color: Colors.textPrimary }}>{item.name}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 600, fontSize: 14, color: Colors.textPrimary }}>{item.name}</span>
+                    {item.brand && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 4, backgroundColor: Colors.primaryLight, color: Colors.primary }}>{item.brand}</span>}
+                    {item.hsnCode && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, backgroundColor: Colors.surfaceVariant, color: Colors.textSecondary }}>HSN {item.hsnCode}</span>}
+                  </div>
                   <span style={{ fontWeight: 700, fontSize: 14, color: Colors.textPrimary }}>{formatCurrency(item.sellingPrice)}</span>
                 </div>
-                <div style={{ fontSize: 11, color: Colors.textSecondary }}>{item.sku} · {item.unit} · Stock: <span style={{ fontWeight: 600, color: stockColor }}>{item.currentStock}</span></div>
+                <div style={{ ...s.spaceBetween, marginTop: 2 }}>
+                  <div style={{ fontSize: 11, color: Colors.textSecondary }}>
+                    {item.sku ? item.sku + ' · ' : ''}{item.unit} {item.gstRate ? `· ${item.gstRate}% GST` : ''}
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: stockColor, backgroundColor: stockColor + '15', padding: '2px 8px', borderRadius: 10 }}>
+                    {item.currentStock <= 0 ? 'Out of Stock' : item.currentStock <= item.minStockLevel ? `Low Stock (${item.currentStock})` : `${item.currentStock} ${item.unit}`}
+                  </div>
+                </div>
               </div>
             </div>
           )

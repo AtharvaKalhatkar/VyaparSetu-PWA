@@ -113,7 +113,7 @@ export function Reports({ onNavigate }: { onNavigate: (p: string) => void }) {
   const totalSales = sales.reduce((s, i) => s + i.grandTotal, 0)
   const totalPurchases = purchases.reduce((s, i) => s + i.grandTotal, 0)
   const totalExpenses = allExpenses.reduce((s, e) => s + e.amount, 0)
-  const outstanding = allInvoices.filter(i => i.paymentStatus !== 'PAID').reduce((s, i) => s + i.dueAmount, 0)
+  const outstanding = sales.filter(i => i.paymentStatus !== 'PAID').reduce((s, i) => s + i.dueAmount, 0)
 
   const modalContent = (key: string): React.ReactNode => {
     switch (key) {
@@ -561,6 +561,7 @@ export function Reports({ onNavigate }: { onNavigate: (p: string) => void }) {
         { label: 'Day Book', icon: <Icons.Document size={14} />, desc: 'Today\'s transactions', onClick: () => setModal('day-book'), color: Colors.primary },
         { label: 'Cash Book', icon: <Icons.Money size={14} />, desc: 'Cash transactions', onClick: () => onNavigate('ledger'), color: Colors.success },
         { label: 'Bank Book', icon: <Icons.Bank size={14} />, desc: 'Bank transactions', onClick: () => onNavigate('bank-accounts'), color: Colors.info },
+        { label: 'Bank Statement Auto-Reconciliation', icon: <Icons.Bank size={14} />, desc: 'Upload HDFC/ICICI CSV & auto-match', onClick: () => onNavigate('bank-reconciliation'), color: '#2563EB', badge: 'NEW' },
         { label: 'Ledger', icon: <Icons.Book size={14} />, desc: 'General ledger', onClick: () => onNavigate('ledger'), color: Colors.primary },
         { label: 'Trial Balance', icon: <Icons.Reports size={14} />, desc: 'Debit/credit summary', onClick: () => setModal('trial-balance'), color: Colors.accent },
         { label: 'P&L', icon: <Icons.Trending size={14} />, desc: 'Profit & loss statement', onClick: () => onNavigate('profitloss'), color: Colors.success },
@@ -570,6 +571,7 @@ export function Reports({ onNavigate }: { onNavigate: (p: string) => void }) {
     },
     {
       title: 'GST', icon: <Icons.Star size={18} />, reports: [
+        { label: 'E-Way Bill & IRN', icon: <Icons.Truck size={14} />, desc: 'Generate E-Way Bills & IRN JSON payload', onClick: () => onNavigate('eway-bill'), color: '#D97706', badge: 'NEW' },
         { label: 'GSTR-1', icon: <Icons.Document size={14} />, desc: 'Outward supply summary', onClick: () => onNavigate('gst-reports'), color: Colors.primary },
         { label: 'GSTR-3B', icon: <Icons.Document size={14} />, desc: 'Monthly return summary', onClick: () => onNavigate('gst-reports'), color: Colors.success },
         { label: 'HSN Summary', icon: <Icons.Reports size={14} />, desc: 'HSN-wise sales', onClick: () => setModal('hsn-summary'), color: Colors.accent },

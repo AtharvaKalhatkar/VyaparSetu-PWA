@@ -72,14 +72,15 @@ api.interceptors.response.use(
         if (!refreshToken) {
           throw new Error('No refresh token available');
         }
-        const { data } = await axios.post<TokenRefreshResponse>(
+        const res = await axios.post<ApiResponse<AuthResponse>>(
           `${Config.API_BASE_URL}/auth/refresh`,
           { refreshToken }
         );
-        await AuthService.setTokens(data.accessToken, data.refreshToken);
-        processQueue(null, data.accessToken);
+        const authData = res.data?.data || (res.data as unknown as AuthResponse);
+        await AuthService.setTokens(authData.accessToken, authData.refreshToken);
+        processQueue(null, authData.accessToken);
         if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+          originalRequest.headers.Authorization = `Bearer ${authData.accessToken}`;
         }
         return api(originalRequest);
       } catch (refreshError) {

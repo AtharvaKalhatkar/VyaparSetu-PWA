@@ -1,26 +1,33 @@
 import type { Party, Item, Invoice, LedgerEntry, Expense, Employee, CrmLead, Unit, InvoiceSettings, BusinessProfile, StockAdjustment, BankAccount, BankTransaction, Subscription, ProductionBatch, Delivery, ReminderLog, FixedAsset, AuditLog, Warehouse, CustomFieldDef, StockTransfer, PriceListDef } from '../types'
 import { getActiveCompanyId } from './company'
 
-function scopeKey(key: string): string {
+export function getStorageKey(key: string): string {
   const cid = getActiveCompanyId()
   return cid ? `vs_${cid}_${key}` : `vs_${key}`
 }
 
 function get<T>(key: string, fallback: T): T {
-  try { const r = localStorage.getItem(scopeKey(key)); return r ? JSON.parse(r) : fallback }
+  try { const r = localStorage.getItem(getStorageKey(key)); return r ? JSON.parse(r) : fallback }
   catch (e) { console.error('Storage read error for', key, e); return fallback }
 }
 function set<T>(key: string, val: T) {
-  try { localStorage.setItem(scopeKey(key), JSON.stringify(val)) }
+  try { localStorage.setItem(getStorageKey(key), JSON.stringify(val)) }
   catch (e) { console.error('Storage write error for', key, e) }
 }
 
 export const DB = {
   parties: {
-    list: () => get<Party[]>('parties', []),
-    save: (p: Party) => { const all = DB.parties.list().filter(x => x.id !== p.id); all.push(p); set('parties', all); return p },
+    list: () => {
+      const list = get<Party[]>('parties', [])
+      return list.map(p => ({
+        ...p,
+        type: p.type || 'CUSTOMER',
+        openingBalance: typeof p.openingBalance === 'number' ? p.openingBalance : (parseFloat(String(p.openingBalance || '0')) || 0),
+      }))
+    },
+    save: (p: Party) => { const all = get<Party[]>('parties', []).filter(x => x.id !== p.id); all.push(p); set('parties', all); return p },
     byId: (id: string) => DB.parties.list().find(p => p.id === id),
-    delete: (id: string) => set('parties', DB.parties.list().filter(p => p.id !== id)),
+    delete: (id: string) => set('parties', get<Party[]>('parties', []).filter(p => p.id !== id)),
   },
   items: {
     list: () => get<Item[]>('items', []),
@@ -79,8 +86,7 @@ export const DB = {
   },
   bankAccounts: {
     list: () => get<BankAccount[]>('bankAccounts', [
-      { id: 'b1', name: 'Cash in Hand', type: 'CASH', balance: 25000, isDefault: true, isActive: true },
-      { id: 'b2', name: 'SBI Current', type: 'BANK', accountNo: '1234567890', ifsc: 'SBIN001234', holderName: 'Business', balance: 150000, isDefault: false, isActive: true },
+      { id: 'b1', name: 'Cash in Hand', type: 'CASH', balance: 0, isDefault: true, isActive: true },
     ]),
     save: (a: BankAccount) => { const all = DB.bankAccounts.list().filter(x => x.id !== a.id); all.push(a); set('bankAccounts', all); return a },
     byId: (id: string) => DB.bankAccounts.list().find(a => a.id === id),
@@ -148,5 +154,19 @@ export const DB = {
     save: (p: PriceListDef) => { const all = DB.priceLists.list().filter(x => x.id !== p.id); all.push(p); set('priceLists', all); return p },
     byId: (id: string) => DB.priceLists.list().find(p => p.id === id),
     delete: (id: string) => set('priceLists', DB.priceLists.list().filter(p => p.id !== id)),
+  },
+  brands: {
+    list: () => get<string[]>('brands', ['Britannia', 'Cadbury', 'Dabur', 'Amul', 'Parle', 'Nestle', 'P&G', 'HUL', 'ITC', 'Tata', 'Godrej', 'Haldiram']),
+    add: (b: string) => {
+      const name = b.trim()
+      if (!name) return
+      const current = DB.brands.list()
+      if (!current.includes(name)) {
+        const updated = [...current, name].sort()
+        set('brands', updated)
+      }
+      return name
+    },
+    delete: (b: string) => set('brands', DB.brands.list().filter(x => x !== b)),
   },
 }

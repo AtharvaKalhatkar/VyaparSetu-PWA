@@ -37,8 +37,15 @@ export function VirtualList<T>({
     setScrollTop(e.currentTarget.scrollTop)
   }, [])
 
+  const headerRef = useRef<HTMLDivElement>(null)
+  const footerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (headerRef.current) setHeaderHeight(headerRef.current.offsetHeight)
+    if (footerRef.current) setFooterHeight(footerRef.current.offsetHeight)
+  }, [header, footer])
+
   const totalListHeight = items.length * itemHeight
-  const totalHeight = headerHeight + totalListHeight + footerHeight
 
   const startIndex = Math.max(0, Math.floor((scrollTop - headerHeight) / itemHeight) - overscan)
   const endIndex = Math.min(items.length, Math.ceil((scrollTop - headerHeight + containerHeight) / itemHeight) + overscan)
@@ -59,7 +66,7 @@ export function VirtualList<T>({
       style={{ overflow: 'auto', WebkitOverflowScrolling: 'touch', ...style }}
       className={className}
     >
-      {header && <div ref={el => { if (el) setHeaderHeight(el.offsetHeight) }}>{header}</div>}
+      {header && <div ref={headerRef}>{header}</div>}
       <div style={{ height: totalListHeight, position: 'relative' }}>
         {visibleItems.map((item, i) => {
           const index = startIndex + i
@@ -75,7 +82,7 @@ export function VirtualList<T>({
           )
         })}
       </div>
-      {footer && <div ref={el => { if (el) setFooterHeight(el.offsetHeight) }}>{footer}</div>}
+      {footer && <div ref={footerRef}>{footer}</div>}
     </div>
   )
 }

@@ -31,7 +31,7 @@ export function DebitCreditNotes() {
   const [date, setDate] = useState(todayISO)
 
   const parties = DB.parties.list()
-  const invoices = DB.invoices.list().filter(i => i.type === 'PURCHASE')
+  const invoices = DB.invoices.list().filter(i => type === 'DEBIT' ? (i.type === 'PURCHASE' || i.docType === 'PURCHASE') : (i.type === 'SALE' || i.docType === 'SALE'))
 
   const addNote = () => {
     const amt = parseFloat(amount)

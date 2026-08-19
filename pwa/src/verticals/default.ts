@@ -4,7 +4,7 @@ import type { VerticalConfig } from './types'
 
 const allModules = [
   'reports', 'customers', 'suppliers', 'expenses', 'employees', 'crm',
-  'invoices', 'stock-adjustment', 'smart-purchase', 'units', 'business-profile',
+  'invoices', 'collections', 'stock-adjustment', 'smart-purchase', 'units', 'business-profile',
   'invoice-settings', 'orders', 'estimates', 'returns', 'challans',
   'daybook', 'profitloss', 'gst-reports', 'bank-accounts', 'data-export', 'settings',
   'subscriptions', 'manufacturing', 'deliveries', 'reminders',

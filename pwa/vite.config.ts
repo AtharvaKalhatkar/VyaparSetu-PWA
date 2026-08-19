@@ -15,10 +15,10 @@ export default defineConfig({
         theme_color: '#2B5DC2',
         background_color: '#F5F6FA',
         display: 'standalone',
-        start_url: '/VyaparSetu-PWA/',
+        start_url: './',
         icons: [
-          { src: '/logo.png', sizes: '192x192', type: 'image/png' },
-          { src: '/logo.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          { src: 'logo.png', sizes: '192x192', type: 'image/png' },
+          { src: 'logo.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
     }),

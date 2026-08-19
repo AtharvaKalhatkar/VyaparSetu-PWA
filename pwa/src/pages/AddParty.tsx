@@ -11,7 +11,7 @@ export function AddParty({ editId, onBack, onNavigate }: { editId?: string; onBa
   const existing = editId ? DB.parties.byId(editId) : null
   const [name, setName] = useState(existing?.name || '')
   const [phone, setPhone] = useState(existing?.phone || '')
-  const [email, setEmail] = useState(existing?.email || '')
+  const [address, setAddress] = useState(existing?.address || '')
   const [gstin, setGstin] = useState(existing?.gstin || '')
   const [type, setType] = useState<'CUSTOMER' | 'SUPPLIER' | 'BOTH'>(existing?.type || 'CUSTOMER')
   const [balance, setBalance] = useState(String(existing?.openingBalance || '0'))
@@ -20,10 +20,9 @@ export function AddParty({ editId, onBack, onNavigate }: { editId?: string; onBa
   const handleSave = () => {
     if (!name.trim()) return
     if (phone.trim() && !/^\d{10}$/.test(phone.trim())) { alert('Phone must be a 10-digit number'); return }
-    if (email.trim() && !/.+@.+\..+/.test(email.trim())) { alert('Invalid email format'); return }
     if (gstin.trim() && !/^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}Z[A-Z\d]{1}$/.test(gstin.trim())) { alert('Invalid GSTIN format (e.g., 29ABCDE1234F1Z5)'); return }
     DB.parties.save({
-      id: existing?.id || generateId(), name: name.trim(), phone: phone.trim(), email: email.trim() || undefined,
+      id: existing?.id || generateId(), name: name.trim(), phone: phone.trim(), address: address.trim() || undefined,
       gstin: gstin.trim() || undefined, type, openingBalance: parseFloat(balance) || 0,
       balanceType: existing?.balanceType || 'DEBIT', creditLimit: existing?.creditLimit || 0,
       creditDays: existing?.creditDays != null ? existing.creditDays : 30, isActive: true,
@@ -48,7 +47,15 @@ export function AddParty({ editId, onBack, onNavigate }: { editId?: string; onBa
       </div>
       <Field label="Name"><input value={name} onChange={e => setName(e.target.value)} placeholder="Party name" style={s.input} /></Field>
       <Field label="Phone"><input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone number" style={s.input} /></Field>
-      <Field label="Email"><input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email (optional)" style={s.input} /></Field>
+      <Field label="Billing Address">
+        <textarea
+          value={address}
+          onChange={e => setAddress(e.target.value)}
+          placeholder="Enter full address (City, State, Pincode)"
+          rows={2}
+          style={{ ...s.input, resize: 'vertical', fontFamily: 'inherit' }}
+        />
+      </Field>
       {config.partyFields.gstin !== 'hidden' && <Field label="GSTIN"><input value={gstin} onChange={e => setGstin(e.target.value)} placeholder={`GSTIN (${config.partyFields.gstin === 'required' ? 'required' : 'optional'})`} style={s.input} /></Field>}
       <Field label="Opening Balance (₹)"><input type="number" value={balance} onChange={e => setBalance(e.target.value)} style={s.input} /></Field>
       <div style={{ display: 'flex', gap: Spacing.sm, marginTop: Spacing.lg }}>

@@ -33,6 +33,9 @@ export const PAGE_TITLES: Record<string, string> = {
   'tds-tcs': 'TDS / TCS',
   'stock-take': 'Stock Take',
   'debit-credit-notes': 'Debit & Credit Notes',
+  'eway-bill': 'E-Way Bill & IRN',
+  'bank-reconciliation': 'Bank Statement Auto-Reconciliation',
+  collections: 'Payment Collections',
   companies: 'Manage Companies',
 }
 
@@ -49,6 +52,7 @@ const MENU_SECTIONS = [
     label: 'Transactions', items: [
       { key: 'purchase', label: 'Purchase', icon: Icons.Truck, color: Colors.warning },
       { key: 'invoices', label: 'Invoices', icon: Icons.Invoice, color: Colors.accent },
+      { key: 'collections', label: 'Payment Collections', icon: Icons.Payment, color: '#059669' },
       { key: 'orders', label: 'Orders', icon: Icons.Cart, color: '#2563EB' },
       { key: 'estimates', label: 'Estimates', icon: Icons.Edit, color: '#7C3AED' },
       { key: 'returns', label: 'Returns', icon: Icons.Refresh, color: '#DC2626' },
@@ -69,7 +73,9 @@ const MENU_SECTIONS = [
       { key: 'daybook', label: 'Day Book', icon: Icons.Book, color: '#059669' },
       { key: 'profitloss', label: 'P&L', icon: Icons.Trending, color: '#2563EB' },
       { key: 'gst-reports', label: 'GST Reports', icon: Icons.Document, color: '#7C3AED' },
+      { key: 'eway-bill', label: 'E-Way Bill & IRN', icon: Icons.Truck, color: '#D97706' },
       { key: 'bank-accounts', label: 'Bank & Cash', icon: Icons.Bank, color: '#059669' },
+      { key: 'bank-reconciliation', label: 'Bank Reconciliation', icon: Icons.Bank, color: '#2563EB' },
       { key: 'stock-summary', label: 'Stock Summary', icon: Icons.Reports, color: Colors.primary },
     ]
   },
@@ -105,23 +111,44 @@ const MENU_SECTIONS = [
 
 export function TabBar({ page, onNavigate, onMore }: { page: string; onNavigate: (p: string) => void; onMore?: () => void }) {
   return (
-    <div className="no-print" style={{
+    <div className="no-print vs-tabbar" style={{
       position: 'fixed', bottom: 0, left: 0, right: 0,
       display: 'flex', backgroundColor: '#FFFFFF',
       borderTop: '1px solid #E5E7EB', zIndex: 100,
       paddingBottom: 'env(safe-area-inset-bottom, 4px)',
-      boxShadow: '0 -2px 10px rgba(0,0,0,0.06)',
+      boxShadow: '0 -4px 12px rgba(15, 23, 42, 0.08)',
+      height: 60, alignItems: 'center',
     }}>
       {TAB_ITEMS.map(t => {
         const active = page === t.key
+        const isCenterSale = t.key === 'billing'
+        if (isCenterSale) {
+          return (
+            <button key={t.key} onClick={() => onNavigate(t.key)} style={{
+              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+              border: 'none', background: 'none', cursor: 'pointer', position: 'relative', top: -12,
+            }}>
+              <div style={{
+                width: 48, height: 48, borderRadius: 24,
+                background: `linear-gradient(135deg, ${Colors.success} 0%, #047857 100%)`,
+                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(5,150,105,0.35)', border: '3px solid #FFFFFF',
+                transition: 'transform 0.15s',
+              }}>
+                <t.icon size={22} />
+              </div>
+              <span style={{ fontSize: 10, fontWeight: 700, color: Colors.success, marginTop: 1 }}>{t.label}</span>
+            </button>
+          )
+        }
         return (
           <button key={t.key} onClick={() => t.key === 'more' ? onMore?.() : onNavigate(t.key)} style={{
             flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-            padding: '8px 0 6px', border: 'none', background: 'none', cursor: 'pointer', gap: 2,
-            color: active ? '#2B5DC2' : '#9CA3AF',
+            padding: '4px 0', border: 'none', background: 'none', cursor: 'pointer', gap: 2,
+            color: active ? Colors.primary : Colors.textSecondary,
             transition: 'color 0.15s',
           }}>
-            <t.icon size={active ? 24 : 22} />
+            <t.icon size={22} color={active ? Colors.primary : Colors.textSecondary} />
             <span style={{ fontSize: 10, fontWeight: active ? 700 : 500 }}>{t.label}</span>
           </button>
         )
@@ -133,8 +160,9 @@ export function TabBar({ page, onNavigate, onMore }: { page: string; onNavigate:
 export function Drawer({ open, onClose, onNavigate, userName, onLogout, companyName, onCompanySwitch }: { open: boolean; onClose: () => void; onNavigate: (p: string) => void; userName: string; onLogout: () => void; companyName?: string; onCompanySwitch?: () => void }) {
   const config = useVertical()
   const invoices = DB.invoices.list()
-  const todaySales = invoices.filter(i => i.date === new Date().toISOString().split('T')[0]).reduce((s, i) => s + i.grandTotal, 0)
-  const outstanding = invoices.filter(i => i.paymentStatus !== 'PAID').reduce((s, i) => s + i.dueAmount, 0)
+  const salesInvoices = invoices.filter(i => i.type === 'SALE' || i.docType === 'SALE')
+  const todaySales = salesInvoices.filter(i => i.date === new Date().toISOString().split('T')[0]).reduce((s, i) => s + i.grandTotal, 0)
+  const outstanding = salesInvoices.filter(i => i.paymentStatus !== 'PAID').reduce((s, i) => s + i.dueAmount, 0)
 
   return (
     <>
@@ -238,18 +266,84 @@ export function MoreMenu({ onNavigate }: { onNavigate: (p: string) => void }) {
   )
 }
 
-export function Header({ title, onBack, rightAction }: { title: string; onBack?: () => void; rightAction?: React.ReactNode }) {
+export function Sidebar({ page, onNavigate, companyName, onCompanySwitch }: { page: string; onNavigate: (p: string) => void; companyName?: string; onCompanySwitch?: () => void }) {
+  const mainNav = [
+    { key: 'dashboard', label: 'Dashboard', icon: Icons.Home },
+    { key: 'invoices', label: 'Sales & Invoices', icon: Icons.Invoice },
+    { key: 'pos-billing', label: 'POS Billing', icon: Icons.Billing },
+    { key: 'purchase', label: 'Purchases', icon: Icons.Truck },
+    { key: 'inventory', label: 'Items & Stock', icon: Icons.Inventory },
+    { key: 'customers', label: 'Customers', icon: Icons.People },
+    { key: 'suppliers', label: 'Suppliers', icon: Icons.Truck },
+    { key: 'gst-reports', label: 'GST Reports', icon: Icons.Document },
+    { key: 'settings', label: 'Settings', icon: Icons.Settings },
+  ]
+
+  return (
+    <aside className="no-print vs-sidebar" style={{
+      width: 220, backgroundColor: '#FFFFFF', borderRight: '1px solid #E2E8F0',
+      display: 'flex', flexDirection: 'column', height: '100vh', flexShrink: 0,
+      position: 'sticky', top: 0, zIndex: 40,
+    }}>
+      <div style={{ padding: '16px', borderBottom: '1px solid #F1F5F9' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <div style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: Colors.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 18, boxShadow: '0 2px 6px rgba(30,64,175,0.25)' }}>V</div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: Colors.textPrimary, letterSpacing: '-0.3px' }}>VyaparSetu</div>
+            <div style={{ fontSize: 10, color: Colors.textSecondary, fontWeight: 700 }}>GST BILLING ERP</div>
+          </div>
+        </div>
+        {companyName && (
+          <button onClick={onCompanySwitch} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 6, backgroundColor: Colors.surfaceVariant, border: '1px solid #E2E8F0', fontSize: 12, fontWeight: 600, color: Colors.textPrimary, cursor: 'pointer' }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{companyName}</span>
+            <span style={{ fontSize: 10 }}>▼</span>
+          </button>
+        )}
+      </div>
+
+      <nav style={{ flex: 1, padding: '12px 8px', overflowY: 'auto' }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: Colors.textSecondary, padding: '0 8px 6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Main Menu</div>
+        {mainNav.map(item => {
+          const active = page === item.key
+          return (
+            <button key={item.key} onClick={() => onNavigate(item.key)} style={{
+              display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 12px',
+              borderRadius: 8, border: 'none', backgroundColor: active ? Colors.primaryLight : 'transparent',
+              color: active ? Colors.primary : Colors.textPrimary, fontWeight: active ? 700 : 500,
+              fontSize: 13, cursor: 'pointer', marginBottom: 3, transition: 'all 0.15s',
+            }}>
+              <item.icon size={18} color={active ? Colors.primary : Colors.textSecondary} />
+              <span>{item.label}</span>
+            </button>
+          )
+        })}
+      </nav>
+
+      <div style={{ padding: '12px', borderTop: '1px solid #F1F5F9' }}>
+        <button onClick={() => onNavigate('billing')} style={{ width: '100%', padding: '10px', borderRadius: 8, backgroundColor: Colors.success, color: '#fff', border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: '0 2px 6px rgba(5,150,105,0.25)' }}>
+          <Icons.Add size={16} /> Create Invoice
+        </button>
+      </div>
+    </aside>
+  )
+}
+
+export function Header({ title, onBack, onMenuToggle, rightAction }: { title: string; onBack?: () => void; onMenuToggle?: () => void; rightAction?: React.ReactNode }) {
   return (
     <div className="no-print" style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '14px 16px',
-      background: `linear-gradient(135deg, #2B5DC2 0%, #1E4BA8 100%)`,
+      background: `linear-gradient(135deg, ${Colors.primary} 0%, ${Colors.primaryDark} 100%)`,
       position: 'sticky', top: 0,
       minHeight: 56, zIndex: 50,
-      boxShadow: '0 2px 8px rgba(43,93,194,0.25)',
+      boxShadow: '0 2px 10px rgba(30, 64, 175, 0.25)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: Spacing.sm }}>
-        {onBack && <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center' }}><Icons.Back size={22} /></button>}
+        {onBack ? (
+          <button onClick={onBack} title="Go Back" style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center' }}><Icons.Back size={22} /></button>
+        ) : onMenuToggle ? (
+          <button onClick={onMenuToggle} title="Open Menu" style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center' }}><Icons.More size={22} /></button>
+        ) : null}
         <h1 style={{ fontSize: 18, fontWeight: 700, color: '#fff', margin: 0, letterSpacing: '-0.3px' }}>{title}</h1>
       </div>
       {rightAction && <div style={{ color: '#fff' }}>{rightAction}</div>}

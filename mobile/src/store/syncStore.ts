@@ -8,6 +8,7 @@ interface SyncState {
   setOnline: (online: boolean) => void;
   incrementPending: () => void;
   decrementPending: () => void;
+  setPendingCount: (count: number) => void;
   setSyncing: (syncing: boolean) => void;
   setLastSynced: (timestamp: string) => void;
   reset: () => void;
@@ -32,6 +33,8 @@ export const useSyncStore = create<SyncState>((set) => ({
     set((state) => ({
       pendingSyncCount: Math.max(0, state.pendingSyncCount - 1),
     })),
+
+  setPendingCount: (count: number) => set({ pendingSyncCount: count }),
 
   setSyncing: (syncing) => set({ isSyncing: syncing }),
 

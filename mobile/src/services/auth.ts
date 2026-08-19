@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 const KEYS = {
@@ -10,8 +11,11 @@ const KEYS = {
 
 async function isSecureStoreAvailable(): Promise<boolean> {
   if (Platform.OS === 'web') return false;
-  const isAvailable = await SecureStore.isAvailableAsync();
-  return isAvailable;
+  try {
+    return await SecureStore.isAvailableAsync();
+  } catch {
+    return false;
+  }
 }
 
 async function safeGet(key: string): Promise<string | null> {
@@ -19,9 +23,9 @@ async function safeGet(key: string): Promise<string | null> {
     if (await isSecureStoreAvailable()) {
       return await SecureStore.getItemAsync(key);
     }
-    return null;
+    return await AsyncStorage.getItem(key);
   } catch {
-    return null;
+    return await AsyncStorage.getItem(key).catch(() => null);
   }
 }
 
@@ -29,9 +33,11 @@ async function safeSet(key: string, value: string): Promise<void> {
   try {
     if (await isSecureStoreAvailable()) {
       await SecureStore.setItemAsync(key, value);
+    } else {
+      await AsyncStorage.setItem(key, value);
     }
   } catch {
-    // fallback silently
+    await AsyncStorage.setItem(key, value).catch(() => {});
   }
 }
 
@@ -39,9 +45,11 @@ async function safeDelete(key: string): Promise<void> {
   try {
     if (await isSecureStoreAvailable()) {
       await SecureStore.deleteItemAsync(key);
+    } else {
+      await AsyncStorage.removeItem(key);
     }
   } catch {
-    // fallback silently
+    await AsyncStorage.removeItem(key).catch(() => {});
   }
 }
 

@@ -22,6 +22,9 @@ export function AddItem({ editId, onBack, onNavigate, onAddUnit }: { editId?: st
   const [sku, setSku] = useState(existing?.sku || '')
   const [category, setCategory] = useState(existing?.category || '')
   const [brand, setBrand] = useState(existing?.brand || '')
+  const [brandsList, setBrandsList] = useState<string[]>(() => DB.brands.list())
+  const [showAddBrandModal, setShowAddBrandModal] = useState(false)
+  const [newBrandName, setNewBrandName] = useState('')
   const [description, setDescription] = useState(existing?.description || '')
   const [itemImage, setItemImage] = useState(existing?.imageUrl || '')
 
@@ -130,7 +133,32 @@ export function AddItem({ editId, onBack, onNavigate, onAddUnit }: { editId?: st
               {categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </Field>
-          {config.itemFields.brand !== 'hidden' && <Field label="Brand"><input value={brand} onChange={e => setBrand(e.target.value)} placeholder="Brand name (optional)" style={s.input} /></Field>}
+          <Field label="Brand / Company">
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <select
+                value={brand}
+                onChange={e => {
+                  if (e.target.value === '__ADD_NEW__') {
+                    setShowAddBrandModal(true)
+                  } else {
+                    setBrand(e.target.value)
+                  }
+                }}
+                style={{ ...s.select, flex: 1 }}
+              >
+                <option value="">Select Brand / Company...</option>
+                {brandsList.map(b => <option key={b} value={b}>{b}</option>)}
+                <option value="__ADD_NEW__">➕ Add New Brand / Company...</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => setShowAddBrandModal(true)}
+                style={{ padding: '10px 14px', borderRadius: BorderRadius.sm, border: `1px solid ${Colors.primary}`, backgroundColor: Colors.primaryLight, color: Colors.primary, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+              >
+                + Add Company
+              </button>
+            </div>
+          </Field>
           <Field label="Item Image">
             <div style={{ display: 'flex', alignItems: 'center', gap: Spacing.sm }}>
               {itemImage && <img src={itemImage} alt="preview" style={{ width: 60, height: 60, borderRadius: BorderRadius.sm, objectFit: 'cover', border: `1px solid ${Colors.border}` }} />}
@@ -239,13 +267,14 @@ export function AddItem({ editId, onBack, onNavigate, onAddUnit }: { editId?: st
               </div>
             )
           })()}
-          <Field label="GST Rate">
+          <Field label="GST Rate (GST 2.0 Tiers)">
             <select value={gstRate} onChange={e => setGstRate(e.target.value)} style={s.select}>
-              <option value="0">0% (Exempted)</option>
-              <option value="5">5%</option>
-              <option value="12">12%</option>
-              <option value="18">18%</option>
-              <option value="28">28%</option>
+              <option value="0">0% (Exempt / Nil Rated)</option>
+              <option value="5">5% (Merit / Essential Goods)</option>
+              <option value="12">12% (Standard Low Tier)</option>
+              <option value="18">18% (Standard High Tier)</option>
+              <option value="28">28% (Special Goods)</option>
+              <option value="40">40% (GST 2.0 Demerit / Luxury + Cess)</option>
             </select>
           </Field>
           <Field label="HSN / SAC Code"><input value={hsnCode} onChange={e => setHsnCode(e.target.value)} placeholder="e.g., 84713000" style={s.input} /></Field>
@@ -331,12 +360,56 @@ export function AddItem({ editId, onBack, onNavigate, onAddUnit }: { editId?: st
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: Spacing.sm, marginTop: Spacing.xxl }}>
-        {step > 0 && <button onClick={() => setStep(step - 1)} style={{ flex: 1, ...s.outlineBtn }}>{step < STEPS.length - 1 ? 'Back' : 'Edit'}</button>}
-        {step < STEPS.length - 1 && <button onClick={() => canNext() && setStep(step + 1)} disabled={!canNext()} style={{ flex: 2, ...(canNext() ? s.primaryBtn : s.primaryBtnDisabled) }}>
-          Continue
-        </button>}
+      <div style={{ display: 'flex', gap: Spacing.sm, marginTop: Spacing.xxl, marginBottom: 40 }}>
+        {step > 0 && <button type="button" onClick={() => setStep(step - 1)} style={{ flex: 1, ...s.outlineBtn }}>{step < STEPS.length - 1 ? 'Back' : 'Edit'}</button>}
+        {step < STEPS.length - 1 && (
+          <button type="button" onClick={() => canNext() && setStep(step + 1)} disabled={!canNext()} style={{ flex: 2, ...(canNext() ? s.primaryBtn : s.primaryBtnDisabled) }}>
+            Continue ➔
+          </button>
+        )}
       </div>
+
+      {showAddBrandModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: Spacing.lg }} onClick={() => setShowAddBrandModal(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, width: '100%', maxWidth: 440, padding: Spacing.xl, boxShadow: '0 4px 16px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: Colors.textPrimary }}>Add New Brand / Company</h3>
+              <button onClick={() => setShowAddBrandModal(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: Colors.textDisabled }}>✕</button>
+            </div>
+            <div style={{ fontSize: 12, color: Colors.textSecondary, marginBottom: Spacing.md }}>
+              Create a new brand or manufacturer company (e.g., <strong>Britannia</strong>, <strong>Cadbury</strong>, <strong>Dabur</strong>, <strong>Amul</strong>)
+            </div>
+            <Field label="Brand / Company Name">
+              <input
+                value={newBrandName}
+                onChange={e => setNewBrandName(e.target.value)}
+                placeholder="e.g. Britannia, Cadbury, Dabur"
+                style={s.input}
+                autoFocus
+              />
+            </Field>
+            <div style={{ display: 'flex', gap: Spacing.sm, marginTop: Spacing.lg }}>
+              <button type="button" onClick={() => setShowAddBrandModal(false)} style={{ flex: 1, padding: '12px', border: `1px solid ${Colors.border}`, borderRadius: BorderRadius.sm, backgroundColor: 'transparent', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!newBrandName.trim()) return
+                  DB.brands.add(newBrandName.trim())
+                  const updated = DB.brands.list()
+                  setBrandsList(updated)
+                  setBrand(newBrandName.trim())
+                  setNewBrandName('')
+                  setShowAddBrandModal(false)
+                }}
+                disabled={!newBrandName.trim()}
+                style={{ flex: 2, ...(newBrandName.trim() ? s.primaryBtn : s.primaryBtnDisabled) }}
+              >
+                Save Brand / Company
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

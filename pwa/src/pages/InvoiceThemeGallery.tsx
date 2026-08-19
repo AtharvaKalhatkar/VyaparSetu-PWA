@@ -19,8 +19,8 @@ const THEMES: { key: InvoiceTemplate; label: string; desc: string; colors: strin
   { key: 'CORPORATE', label: 'Corporate', desc: 'Steel gray and blue business theme with sharp lines — executive grade', colors: ['#37474f', '#eceff1', '#1565c0'], features: ['Corporate gray', 'Blue accents', 'Sharp lines', 'Executive', 'Minimalist'] },
 ]
 
-export function InvoiceThemeGallery({ onSelect, compact }: { onSelect?: (t: InvoiceTemplate) => void; compact?: boolean }) {
-  const current = DB.settings.get().template
+export function InvoiceThemeGallery({ selectedTemplate, onSelect, compact }: { selectedTemplate?: InvoiceTemplate; onSelect?: (t: InvoiceTemplate) => void; compact?: boolean }) {
+  const current = selectedTemplate || DB.settings.get().template
 
   return (
     <div>

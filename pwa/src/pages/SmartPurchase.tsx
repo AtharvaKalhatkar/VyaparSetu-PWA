@@ -13,7 +13,7 @@ function preprocessImage(dataUrl: string): Promise<string> {
     const img = new Image()
     img.onload = () => {
       const w = img.naturalWidth, h = img.naturalHeight
-      const scale = Math.min(1600 / w, 1600 / h, 1)
+      const scale = Math.min(1800 / w, 1800 / h, 1)
       const cw = Math.round(w * scale), ch = Math.round(h * scale)
       const canvas = document.createElement('canvas')
       canvas.width = cw; canvas.height = ch
@@ -24,12 +24,13 @@ function preprocessImage(dataUrl: string): Promise<string> {
       for (let i = 0; i < d.length; i += 4) {
         const r = d[i], g = d[i + 1], b = d[i + 2]
         const gray = 0.299 * r + 0.587 * g + 0.114 * b
-        const contrast = gray > 128 ? Math.min(255, gray * 1.3) : Math.max(0, gray * 0.7)
-        d[i] = d[i + 1] = d[i + 2] = contrast
+        const val = gray < 160 ? Math.max(0, gray - 15) : Math.min(255, gray + 15)
+        d[i] = d[i + 1] = d[i + 2] = val
       }
       ctx.putImageData(imageData, 0, 0)
       resolve(canvas.toDataURL('image/png'))
     }
+    img.onerror = () => resolve(dataUrl)
     img.src = dataUrl
   })
 }
@@ -40,15 +41,15 @@ function loadTesseract(): Promise<void> {
     const script = document.createElement('script')
     script.src = TESSERACT_CDN
     script.onload = () => resolve()
-    script.onerror = () => reject(new Error('Failed to load OCR engine'))
+    script.onerror = () => reject(new Error('Failed to load OCR engine from CDN'))
     document.head.appendChild(script)
   })
 }
 
 function extractNumbers(text: string): number[] {
   const tokens: number[] = []
-  const cleaned = text.replace(/[₹,]/g, '')
-  const matches = cleaned.match(/\d+\.?\d*/g)
+  const cleaned = text.replace(/[₹,$]/g, '')
+  const matches = cleaned.match(/\d+(?:\.\d+)?/g)
   if (matches) {
     for (const m of matches) {
       const n = parseFloat(m)
@@ -117,6 +118,62 @@ function parseBillLines(lines: string[], items: Item[]): { name: string; qty: nu
     'rate', 'amount', 'price', 'net', 'grand', 'round', 'off',
     'thank', 'you', 'business', 'seller', 'buyer', 'reverse charge',
   ])
+
+  for (let raw of lines) {
+    raw = raw.trim()
+    if (!raw || raw.length < 3) continue
+
+    const lower = raw.toLowerCase()
+    if (Array.from(skipWords).some(w => lower.includes(w)) && /^[A-Za-z\s]{2,}$/.test(raw)) continue
+
+    const nums = extractNumbers(raw)
+    if (nums.length === 0) continue
+
+    let qty = 1, rate = 0, amount = 0
+
+    if (nums.length >= 3) {
+      amount = nums[nums.length - 1]
+      rate = nums[nums.length - 2]
+      qty = nums[nums.length - 3]
+    } else if (nums.length === 2) {
+      rate = nums[0]
+      amount = nums[1]
+      qty = rate > 0 ? Math.round(amount / rate) || 1 : 1
+    } else if (nums.length === 1) {
+      amount = nums[0]
+      rate = amount
+      qty = 1
+    }
+
+    if (amount <= 0 || rate < 0) continue
+
+    let name = raw
+      .replace(/\d+(?:\.\d+)?/g, ' ')
+      .replace(/[₹,.*\-:\/xX@=#]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+
+    const nameTokens = name.split(/\s+/).filter(t => t.length > 1 && !skipWords.has(t.toLowerCase()))
+
+    let matched: Item | undefined
+    if (nameTokens.length > 0) {
+      const searchText = nameTokens.join(' ').toLowerCase()
+      matched = items.find(i => i.name.toLowerCase().includes(searchText) || searchText.includes(i.name.toLowerCase()))
+    }
+
+    if (nameTokens.length === 0) {
+      name = `Item ${result.length + 1}`
+    } else {
+      name = nameTokens.join(' ')
+    }
+
+    result.push({
+      name: matched?.name || name,
+      qty: Math.max(1, Math.round(qty)),
+      rate: Math.round(rate),
+      amount: Math.round(amount),
+    })
+  }
 
   for (let raw of lines) {
     raw = raw.trim()
@@ -274,11 +331,9 @@ export function SmartPurchase() {
       if (!mountedRef.current) return
       const result = await (window as any).Tesseract.recognize(
         processed,
-        'eng+hin',
+        'eng',
         {
           logger: () => {},
-          tessedit_pageseg_mode: '3',
-          tessedit_char_whitelist: '',
         }
       )
       if (!mountedRef.current) return

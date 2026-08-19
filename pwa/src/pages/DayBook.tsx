@@ -17,8 +17,8 @@ export function DayBook({ onNavigate }: { onNavigate: (p: string) => void }) {
   const dayExps = expenses.filter(e => e.date === date)
   const dayTxns = txns.filter(t => t.date === date)
 
-  const sales = dayInvs.filter(i => i.type === 'SALE')
-  const purchases = dayInvs.filter(i => i.type === 'PURCHASE')
+  const sales = dayInvs.filter(i => i.type === 'SALE' && (i.docType === 'SALE' || !i.docType))
+  const purchases = dayInvs.filter(i => i.type === 'PURCHASE' && (i.docType === 'PURCHASE' || !i.docType))
   const paymentsIn = dayTxns.filter(t => t.type === 'DEPOSIT')
   const paymentsOut = dayTxns.filter(t => t.type === 'WITHDRAWAL')
 

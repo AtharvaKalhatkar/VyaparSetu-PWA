@@ -9,13 +9,7 @@ import { OfflineBanner } from '../../components/common/OfflineBanner';
 import { formatCurrency } from '../../utils/formatting';
 import type { Item } from '../../types';
 
-const MOCK_ITEMS: Item[] = [
-  { id: 'i1', businessId: 'b1', name: 'Premium Basmati Rice', sku: 'RICE-001', barcode: '8901234567890', hsnCode: '1006', sellingPrice: 85, purchasePrice: 72, mrp: 90, gstRate: 5, taxPreference: 'TAXABLE', isActive: true, isService: false, isBatchTracked: false, isSerialTracked: false, minStockLevel: 50, maxStockLevel: 500, createdAt: '', updatedAt: '', unitId: 'u1', currentStock: 120, category: { id: 'c1', businessId: 'b1', name: 'Food Grains', isActive: true }, unit: { id: 'u1', businessId: 'b1', name: 'Kilogram', shortName: 'kg', isActive: true } },
-  { id: 'i2', businessId: 'b1', name: 'Fortune Sunflower Oil', sku: 'OIL-001', barcode: '8901234567891', hsnCode: '1512', sellingPrice: 185, purchasePrice: 165, mrp: 195, gstRate: 5, taxPreference: 'TAXABLE', isActive: true, isService: false, isBatchTracked: true, isSerialTracked: false, minStockLevel: 20, maxStockLevel: 200, createdAt: '', updatedAt: '', unitId: 'u1', currentStock: 45, category: { id: 'c2', businessId: 'b1', name: 'Edible Oils', isActive: true }, unit: { id: 'u1', businessId: 'b1', name: 'Liter', shortName: 'L', isActive: true } },
-  { id: 'i3', businessId: 'b1', name: 'LED Bulb 12W', sku: 'ELEC-001', barcode: '8901234567892', hsnCode: '8542', sellingPrice: 120, purchasePrice: 85, mrp: 150, gstRate: 18, taxPreference: 'TAXABLE', isActive: true, isService: false, isBatchTracked: false, isSerialTracked: false, minStockLevel: 30, maxStockLevel: 300, createdAt: '', updatedAt: '', unitId: 'u2', currentStock: 15, category: { id: 'c3', businessId: 'b1', name: 'Electronics', isActive: true }, unit: { id: 'u2', businessId: 'b1', name: 'Piece', shortName: 'Pcs', isActive: true } },
-  { id: 'i4', businessId: 'b1', name: 'Copy Notebook 200 Pages', sku: 'STA-001', barcode: '8901234567893', hsnCode: '4820', sellingPrice: 45, purchasePrice: 32, mrp: 55, gstRate: 12, taxPreference: 'TAXABLE', isActive: true, isService: false, isBatchTracked: false, isSerialTracked: false, minStockLevel: 100, maxStockLevel: 1000, createdAt: '', updatedAt: '', unitId: 'u2', currentStock: 340, category: { id: 'c4', businessId: 'b1', name: 'Stationery', isActive: true }, unit: { id: 'u2', businessId: 'b1', name: 'Piece', shortName: 'Pcs', isActive: true } },
-  { id: 'i5', businessId: 'b1', name: 'Tata Salt 1kg', sku: 'GROC-001', barcode: '8901234567894', hsnCode: '2501', sellingPrice: 22, purchasePrice: 18, mrp: 25, gstRate: 0, taxPreference: 'EXEMPT', isActive: true, isService: false, isBatchTracked: false, isSerialTracked: false, minStockLevel: 100, maxStockLevel: 500, createdAt: '', updatedAt: '', unitId: 'u1', currentStock: 90, category: { id: 'c5', businessId: 'b1', name: 'Grocery', isActive: true }, unit: { id: 'u1', businessId: 'b1', name: 'Kilogram', shortName: 'kg', isActive: true } },
-];
+const MOCK_ITEMS: Item[] = [];
 
 export const ItemListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [search, setSearch] = useState('');
@@ -73,7 +67,7 @@ export const ItemListScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           </View>
           <View style={styles.priceRow}>
             <Text style={styles.priceLabel}>Stock</Text>
-            <Text style={styles.stockQty}>{item.minStockLevel} {item.unit?.shortName}</Text>
+            <Text style={styles.stockQty}>{item.currentStock ?? 0} {item.unit?.shortName}</Text>
           </View>
         </View>
         {item.barcode && (

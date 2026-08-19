@@ -23,9 +23,13 @@ export function RemindersPage({ onNavigate }: { onNavigate: (p: string) => void 
   }
 
   const sendWhatsApp = (inv: Invoice) => {
-    const items = inv.items.map(i => `• ${i.itemName} x${i.quantity} ${i.unit} = ${formatCurrency(i.amount)}`).join('\n')
-    const msg = `🧾 *Payment Reminder*\n\nInvoice: ${inv.invoiceNo}\nDate: ${formatDate(inv.date)}\nParty: ${inv.partyName}\nTotal: ₹${inv.grandTotal.toLocaleString()}\nDue: ₹${inv.dueAmount.toLocaleString()}\n\nPlease make the payment at the earliest.\n\nThank you`
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
+    const party = DB.parties.byId(inv.partyId)
+    const phone = party?.phone ? party.phone.replace(/[^0-9]/g, '') : ''
+    const total = formatCurrency(inv.grandTotal)
+    const due = formatCurrency(inv.dueAmount)
+    const msg = `🧾 *Payment Reminder*\n\nInvoice: *#${inv.invoiceNo}*\nDate: ${formatDate(inv.date)}\nParty: *${inv.partyName}*\nTotal: *${total}*\nRemaining Due: *${due}*\n\nPlease make the payment at your earliest convenience.\n\nThank you!`
+    const url = phone ? `https://wa.me/${phone.length === 10 ? '91' + phone : phone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`
+    window.open(url, '_blank')
 
     DB.reminders.save({ id: generateId(), invoiceId: inv.id, partyName: inv.partyName, invoiceNo: inv.invoiceNo, amount: inv.grandTotal, dueAmount: inv.dueAmount, sentDate: todayISO(), type: 'WHATSAPP' })
     toast('Reminder sent via WhatsApp!', 'success')

@@ -26,6 +26,10 @@ export function StockTransfer({ onBack }: { onBack?: () => void }) {
     if (!item) return
     const q = parseInt(qty) || 0
     if (q <= 0) return
+    if (q > item.currentStock) {
+      alert(`❌ Cannot transfer ${q} units! Only ${item.currentStock} ${item.unit} available in stock.`)
+      return
+    }
     DB.stockTransfers.save({ id: generateId(), itemId, itemName: item.name, fromWarehouse: fromW, toWarehouse: toW, quantity: q, date, notes: notes.trim() || undefined })
     DB.auditLogs.save({ id: generateId(), entity: 'STOCK', entityId: itemId, action: 'UPDATE', user: 'Admin', timestamp: new Date().toISOString(), description: `Transferred ${q} ${item.name} from ${fromW} to ${toW}` })
     const savedItem = DB.items.byId(itemId)

@@ -9,13 +9,7 @@ import { OfflineBanner } from '../../components/common/OfflineBanner';
 import { formatCurrency, formatPhone } from '../../utils/formatting';
 import type { Party, PartyType } from '../../types';
 
-const MOCK_PARTIES: Party[] = [
-  { id: '1', businessId: 'b1', name: 'Sharma General Store', phone: '9876543210', email: 'sharma@example.com', type: 'CUSTOMER', creditLimit: 50000, creditDays: 30, openingBalance: 0, balanceType: 'DEBIT', isActive: true, tags: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: '2', businessId: 'b1', name: 'Gupta Electronics', phone: '9988776655', email: 'gupta@example.com', type: 'CUSTOMER', creditLimit: 100000, creditDays: 45, openingBalance: 25000, balanceType: 'DEBIT', isActive: true, tags: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: '3', businessId: 'b1', name: 'Verma Traders', phone: '9876501234', gstin: '27ABCDE1234F1Z5', type: 'SUPPLIER', creditLimit: 200000, creditDays: 60, openingBalance: 0, balanceType: 'CREDIT', isActive: true, tags: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: '4', businessId: 'b1', name: 'Singh & Sons', phone: '9765432100', type: 'BOTH', creditLimit: 75000, creditDays: 30, openingBalance: 12000, balanceType: 'DEBIT', isActive: true, tags: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: '5', businessId: 'b1', name: 'Patel Medical Store', phone: '9654321001', type: 'CUSTOMER', creditLimit: 30000, creditDays: 15, openingBalance: 0, balanceType: 'DEBIT', isActive: true, tags: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-];
+const MOCK_PARTIES: Party[] = [];
 
 export const PartyListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [search, setSearch] = useState('');

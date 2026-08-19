@@ -3,6 +3,7 @@ import { Colors, Spacing, BorderRadius } from '../theme'
 import { Icons } from './Icons'
 import { listCompanies, saveCompany, deleteCompany, switchCompany, getActiveCompanyId, getDefaultCompany, type Company } from './company'
 import { generateId } from './formatting'
+import { DB } from './storage'
 
 export function CompanySwitcher({ open, onClose, onNavigate }: { open: boolean; onClose: () => void; onNavigate?: (p: string) => void }) {
   const [showForm, setShowForm] = useState(false)
@@ -34,6 +35,23 @@ export function CompanySwitcher({ open, onClose, onNavigate }: { open: boolean; 
       createdAt: editId ? (companies.find(c => c.id === editId)?.createdAt || new Date().toISOString()) : new Date().toISOString(),
     }
     saveCompany(company)
+    if (company.id === activeId) {
+      const profile = DB.businessProfile.get()
+      DB.businessProfile.save({
+        ...profile,
+        businessName: company.businessName,
+        ownerName: company.ownerName,
+        phone: company.phone,
+        email: company.email,
+        address: company.address,
+        gstin: company.gstin,
+        pan: company.pan,
+        bankName: company.bankName,
+        bankAccount: company.bankAccount,
+        bankIfsc: company.bankIfsc,
+        signature: company.signature,
+      })
+    }
     setShowForm(false)
     setEditId(null)
     setForm({})

@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react'
 import { Colors, Spacing } from './theme'
 import { useAuth } from './store/auth'
 import { seedData } from './utils/seed'
-import { Header, TabBar, Drawer, PAGE_TITLES } from './pages/Layout'
+import { Header, TabBar, Drawer, Sidebar, PAGE_TITLES } from './pages/Layout'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { ToastProvider } from './utils/smooth'
@@ -60,6 +60,9 @@ import { Gstr2Matching } from './pages/Gstr2Matching'
 import { TdsTcs } from './pages/TdsTcs'
 import { StockTake } from './pages/StockTake'
 import { DebitCreditNotes } from './pages/DebitCreditNotes'
+import { EWayBillPage } from './pages/EWayBill'
+import { BankReconciliation } from './pages/BankReconciliation'
+import { CollectionsPage } from './pages/CollectionsPage'
 import { VerticalProvider } from './context/VerticalContext'
 import { CompanySwitcher } from './utils/CompanySwitcher'
 import { migrateLegacyData, ensureCompany, byCompanyId, getActiveCompanyId } from './utils/company'
@@ -111,7 +114,9 @@ export default function App() {
 
   const navigate = (p: string) => {
     const [route, qs] = p.split('?')
-    if (!TAB_PAGES.includes(page) || !TAB_PAGES.includes(route)) setHistory(prev => [...prev, page])
+    if (page !== route && (!TAB_PAGES.includes(page) || !TAB_PAGES.includes(route))) {
+      setHistory(prev => [...prev, page])
+    }
     const pms: Record<string, string> = {}
     if (qs) qs.split('&').forEach(part => { const [k, v] = part.split('='); pms[k] = decodeURIComponent(v || '') })
     setParams(pms)
@@ -121,9 +126,16 @@ export default function App() {
   }
 
   const goBack = () => {
-    const [prev, ...rest] = history
-    setHistory(rest)
-    setPage(prev || 'dashboard')
+    if (history.length === 0) {
+      setPage('dashboard')
+      setParams({})
+      return
+    }
+    const newHist = [...history]
+    const prev = newHist.pop() || 'dashboard'
+    setHistory(newHist)
+    setPage(prev)
+    setParams({})
     setNavDir('back')
     pageKey.current++
   }
@@ -160,6 +172,7 @@ export default function App() {
       case 'price-lists': return <PriceListsPage onBack={goBack} />
       case 'business-profile': return <BusinessProfile onBack={goBack} onNavigate={navigate} />
       case 'smart-purchase': return <SmartPurchase />
+      case 'collections': return <CollectionsPage onNavigate={navigate} />
       case 'orders': return <OrdersPage onNavigate={navigate} />
       case 'estimates': return <EstimatesPage onNavigate={navigate} />
       case 'returns': return <ReturnsPage onNavigate={navigate} sourceId={params.sourceId || ''} />
@@ -180,6 +193,8 @@ export default function App() {
       case 'tds-tcs': return <TdsTcs />
       case 'stock-take': return <StockTake />
       case 'debit-credit-notes': return <DebitCreditNotes />
+      case 'eway-bill': return <EWayBillPage onBack={goBack} />
+      case 'bank-reconciliation': return <BankReconciliation onBack={goBack} />
       case 'receipt-scan': return <ReceiptScanPage onBack={goBack} />
       case 'online-store': return <OnlineStore />
       case 'add-party': return <AddParty editId={params.id} onBack={goBack} onNavigate={navigate} />
@@ -193,7 +208,7 @@ export default function App() {
         <CompanySwitcher open={true} onClose={() => navigate('settings')} onNavigate={navigate} />
       </div>
       case 'settings': return <Settings onNavigate={navigate} onLogout={() => { logout(); setPage('dashboard') }} isDarkMode={darkMode} onToggleDarkMode={toggleDarkMode} />
-      case 'party-ledger': return <PartyLedger partyId={params.partyId || ''} />
+      case 'party-ledger': return <PartyLedger partyId={params.partyId || ''} onBack={goBack} onNavigate={navigate} />
       default: return <Dashboard userName={userName} onNavigate={navigate} />
     }
   }
@@ -201,17 +216,20 @@ export default function App() {
   return (
     <VerticalProvider>
     <ToastProvider>
-    <div onClick={e => { const t = (e.target as HTMLElement).closest('[data-haptic]') as HTMLElement; if (t) try { navigator.vibrate?.(parseInt(t.dataset.haptic || '10') || 10) } catch (e) { console.error('vibrate failed', e) } }} style={{ height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: Colors.background }} className={darkMode ? 'vs-dark' : ''}>
-      {page !== 'dashboard' && <Header title={title} onBack={showBack ? goBack : undefined}
-        rightAction={activeCompany ? <button onClick={() => setShowCompanySwitcher(true)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, opacity: 0.9 }}>
-          {activeCompany.name} <span style={{ fontSize: 8 }}>▼</span>
-        </button> : undefined}
-      />}
-      <div key={pageKey.current} style={{
-        flex: 1, overflow: 'auto',
-        animation: navDir === 'forward' ? 'pageIn 0.3s ease-out' : 'pageOut 0.3s ease-out',
-      }}>
-        {renderPage()}
+    <div onClick={e => { const t = (e.target as HTMLElement).closest('[data-haptic]') as HTMLElement; if (t) try { navigator.vibrate?.(parseInt(t.dataset.haptic || '10') || 10) } catch (e) { console.error('vibrate failed', e) } }} style={{ height: '100vh', display: 'flex', backgroundColor: Colors.background }} className={darkMode ? 'vs-dark' : ''}>
+      <Sidebar page={page} onNavigate={navigate} companyName={activeCompany?.name} onCompanySwitch={() => setShowCompanySwitcher(true)} />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        <Header title={title} onBack={showBack ? goBack : undefined} onMenuToggle={() => setDrawerOpen(true)}
+          rightAction={activeCompany ? <button onClick={() => setShowCompanySwitcher(true)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, opacity: 0.9 }}>
+            {activeCompany.name} <span style={{ fontSize: 8 }}>▼</span>
+          </button> : undefined}
+        />
+        <div key={pageKey.current} style={{
+          flex: 1, overflow: 'auto',
+          animation: navDir === 'forward' ? 'pageIn 0.3s ease-out' : 'pageOut 0.3s ease-out',
+        }}>
+          {renderPage()}
+        </div>
       </div>
       <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onNavigate={navigate} userName={userName} onLogout={() => { logout(); setPage('dashboard'); setDrawerOpen(false) }}
         companyName={activeCompany?.name} onCompanySwitch={() => { setDrawerOpen(false); setShowCompanySwitcher(true) }}
@@ -223,6 +241,14 @@ export default function App() {
         @keyframes pageOut { from { opacity:0.5;transform:translateX(-24px) } to { opacity:1;transform:translateX(0) } }
         .vs-dark { filter: invert(0.9) hue-rotate(180deg); }
         .vs-dark img, .vs-dark video, .vs-dark [class*="avatar"], .vs-dark [style*="background-image"] { filter: invert(1) hue-rotate(-180deg); }
+        @media (min-width: 768px) {
+          .vs-tabbar { display: none !important; }
+          .vs-sidebar { display: flex !important; }
+        }
+        @media (max-width: 767px) {
+          .vs-sidebar { display: none !important; }
+          .vs-tabbar { display: flex !important; }
+        }
         @media print {
           .no-print { display: none !important; }
           body { background: white; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }

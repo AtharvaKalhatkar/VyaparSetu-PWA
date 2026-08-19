@@ -5,7 +5,7 @@ import { DB } from '../utils/storage'
 import { formatCurrency, todayISO } from '../utils/formatting'
 import { Icons } from '../utils/Icons'
 import { ExportBar } from '../utils/ExportBar'
-import * as XLSX from 'xlsx'
+import { downloadGstr1Json } from '../utils/gstJson'
 
 function isInterState(partyGstin: string | undefined, businessState?: string): boolean {
   if (!partyGstin || !businessState) return false
@@ -137,20 +137,31 @@ export function GstReports({ onNavigate }: { onNavigate: (p: string) => void }) 
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: Colors.textPrimary }}>GST Reports</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: Spacing.sm }}>
           <input type="month" value={month} onChange={e => setMonth(e.target.value)} style={{ ...s.input, width: 140 }} />
-          <ExportBar title={'gst-' + tab}
-            xlsData={tab === 'GSTR1' ? {
-              name: 'GSTR1', headers: ['Invoice No', 'Party', 'Item', 'HSN', 'Qty', 'Rate', 'Taxable', 'GST%', 'Tax'],
-              rows: saleInvs.flatMap(inv => inv.items.map(it => [inv.invoiceNo, inv.partyName, it.itemName, it.sku || '', String(it.quantity), String(it.rate), String((it.quantity * it.rate) - it.discountAmount), String(it.gstRate) + '%', String(((it.quantity * it.rate) - it.discountAmount) * it.gstRate / 100)])),
-            } : {
-              name: 'GSTR3B', headers: ['Period', 'Sales Taxable', 'Sales Tax', 'Purchase Taxable', 'Purchase Tax'],
-              rows: [[month,
-                String(saleInvs.reduce((s, i) => s + i.items.reduce((s2, it) => s2 + (it.quantity * it.rate) - it.discountAmount, 0), 0)),
-                String(saleInvs.reduce((s, i) => s + i.items.reduce((s2, it) => s2 + ((it.quantity * it.rate) - it.discountAmount) * it.gstRate / 100, 0), 0)),
-                String(purchInvs.reduce((s, i) => s + i.items.reduce((s2, it) => s2 + (it.quantity * it.rate) - it.discountAmount, 0), 0)),
-                String(purchInvs.reduce((s, i) => s + i.items.reduce((s2, it) => s2 + ((it.quantity * it.rate) - it.discountAmount) * it.gstRate / 100, 0), 0)),
-              ]],
-            }}
-          />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {tab === 'GSTR1' && (
+              <button
+                type="button"
+                onClick={() => downloadGstr1Json(month)}
+                style={{ padding: '8px 12px', borderRadius: 6, border: `1px solid ${Colors.primary}`, backgroundColor: Colors.primaryLight, color: Colors.primary, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+              >
+                Govt GSTR-1 JSON Payload ↓
+              </button>
+            )}
+            <ExportBar title={'gst-' + tab}
+              xlsData={tab === 'GSTR1' ? {
+                name: 'GSTR1', headers: ['Invoice No', 'Party', 'Item', 'HSN', 'Qty', 'Rate', 'Taxable', 'GST%', 'Tax'],
+                rows: saleInvs.flatMap(inv => inv.items.map(it => [inv.invoiceNo, inv.partyName, it.itemName, it.sku || '', String(it.quantity), String(it.rate), String((it.quantity * it.rate) - it.discountAmount), String(it.gstRate) + '%', String(((it.quantity * it.rate) - it.discountAmount) * it.gstRate / 100)])),
+              } : {
+                name: 'GSTR3B', headers: ['Period', 'Sales Taxable', 'Sales Tax', 'Purchase Taxable', 'Purchase Tax'],
+                rows: [[month,
+                  String(saleInvs.reduce((s, i) => s + i.items.reduce((s2, it) => s2 + (it.quantity * it.rate) - it.discountAmount, 0), 0)),
+                  String(saleInvs.reduce((s, i) => s + i.items.reduce((s2, it) => s2 + ((it.quantity * it.rate) - it.discountAmount) * it.gstRate / 100, 0), 0)),
+                  String(purchInvs.reduce((s, i) => s + i.items.reduce((s2, it) => s2 + (it.quantity * it.rate) - it.discountAmount, 0), 0)),
+                  String(purchInvs.reduce((s, i) => s + i.items.reduce((s2, it) => s2 + ((it.quantity * it.rate) - it.discountAmount) * it.gstRate / 100, 0), 0)),
+                ]],
+              }}
+            />
+          </div>
         </div>
       </div>
       <div style={{ display: 'flex', gap: Spacing.sm, marginBottom: Spacing.lg }}>

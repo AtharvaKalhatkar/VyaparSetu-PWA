@@ -33,7 +33,7 @@ export function ProfitLoss({ onNavigate }: { onNavigate: (p: string) => void }) 
   const invoices = DB.invoices.list().filter(i => i.date >= from && i.date <= to)
   const expenses = DB.expenses.list().filter(e => e.date >= from && e.date <= to)
 
-  const sales = invoices.filter(i => i.type === 'SALE')
+  const sales = invoices.filter(i => i.type === 'SALE' && (i.docType === 'SALE' || !i.docType))
   const allItems = DB.items.list()
 
   const totalSales = sales.reduce((s, i) => s + i.grandTotal, 0)

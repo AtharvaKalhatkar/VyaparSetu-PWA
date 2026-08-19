@@ -31,6 +31,7 @@ export function InvoiceSettings() {
   const [currencySymbol, setCurrencySymbol] = useState(settings.currencySymbol || '₹')
   const [roundOff, setRoundOff] = useState(settings.roundOff ?? false)
   const [lateFeePercent, setLateFeePercent] = useState(String(settings.lateFeePercent || 0))
+  const [allowNegativeStock, setAllowNegativeStock] = useState(settings.allowNegativeStock ?? false)
   const [saved, setSaved] = useState(false)
 
   const handleCurrencyChange = (code: string) => {
@@ -44,6 +45,7 @@ export function InvoiceSettings() {
       enableGst, themeColor, showBank, showSignature, showLogo: true, paperSize: 'A4',
       currency: currencyCode, currencySymbol,
       roundOff, lateFeePercent: parseFloat(lateFeePercent) || 0,
+      allowNegativeStock,
     })
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -57,7 +59,13 @@ export function InvoiceSettings() {
       </Field>
 
       <Field label="Invoice Template">
-        <InvoiceThemeGallery onSelect={(t) => setTemplate(t)} />
+        <InvoiceThemeGallery selectedTemplate={template} onSelect={(t) => {
+          setTemplate(t)
+          const curr = DB.settings.get()
+          DB.settings.save({ ...curr, template: t })
+          setSaved(true)
+          setTimeout(() => setSaved(false), 2000)
+        }} />
       </Field>
 
       <Field label="Theme Color">
@@ -93,6 +101,10 @@ export function InvoiceSettings() {
         <label style={{ display: 'flex', alignItems: 'center', gap: Spacing.sm, cursor: 'pointer', marginBottom: Spacing.sm }}>
           <input type="checkbox" checked={roundOff} onChange={e => setRoundOff(e.target.checked)} style={{ width: 18, height: 18 }} />
           <span style={{ fontSize: 14, color: Colors.textPrimary }}>Round off invoice totals</span>
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: Spacing.sm, cursor: 'pointer', marginBottom: Spacing.sm }}>
+          <input type="checkbox" checked={allowNegativeStock} onChange={e => setAllowNegativeStock(e.target.checked)} style={{ width: 18, height: 18 }} />
+          <span style={{ fontSize: 14, color: Colors.textPrimary }}>Allow negative stock sales (create sale invoice even if out of stock)</span>
         </label>
         <Field label="Late Fee (% per month)">
           <input type="number" value={lateFeePercent} onChange={e => setLateFeePercent(e.target.value)} style={s.input} min="0" max="100" step="0.5" />
