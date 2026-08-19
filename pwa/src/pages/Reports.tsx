@@ -7,6 +7,8 @@ import { Icons } from '../utils/Icons'
 import { ExportBar } from '../utils/ExportBar'
 import * as XLSX from 'xlsx'
 
+import { toBaseQty } from '../utils/invoiceOps'
+
 interface ReportItem {
   label: string; icon: React.ReactNode; desc?: string; onClick: () => void; color?: string; badge?: string
 }
@@ -214,9 +216,9 @@ export function Reports({ onNavigate }: { onNavigate: (p: string) => void }) {
         const rows = sales.map(i => {
           const cost = i.items.reduce((s, li) => {
             const item = itemsMap.get(li.itemId)
-            const conv = item?.units?.find(u => u.unitName === li.unit)?.conversionRate || 1
-            const baseQty = li.unit === item?.unit ? li.quantity : (conv > 1 ? li.quantity / conv : li.quantity * conv)
-            const unitCost = item?.purchasePrice || 0
+            if (!item) return s + (li.amount || 0)
+            const baseQty = toBaseQty(item, li.quantity, li.unit)
+            const unitCost = item.purchasePrice || 0
             return s + unitCost * baseQty
           }, 0)
           const profit = i.grandTotal - cost

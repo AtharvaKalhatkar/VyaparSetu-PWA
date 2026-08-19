@@ -5,6 +5,7 @@ import { DB } from '../utils/storage'
 import { formatCurrency as fc, formatDate } from '../utils/formatting'
 import { Icons } from '../utils/Icons'
 import type { Invoice, InvoiceItem, InvoiceTemplate } from '../types'
+import { toBaseQty } from '../utils/invoiceOps'
 
 function formatCurrency(n: number) { return fc(n) }
 
@@ -43,6 +44,17 @@ export function InvoiceView({ invoiceId, onNavigate, autoPrint }: { invoiceId: s
   const settings = DB.settings.get()
   const profile = DB.businessProfile.get()
   const [currentTemplate, setCurrentTemplate] = useState<InvoiceTemplate>(settings.template || 'STANDARD')
+
+  const allItems = DB.items.list()
+  const itemsMap = new Map(allItems.map(i => [i.id, i]))
+  const billCost = inv.items.reduce((sum, li) => {
+    const item = itemsMap.get(li.itemId)
+    if (!item) return sum + (li.amount || 0)
+    const baseQty = toBaseQty(item, li.quantity, li.unit)
+    return sum + (item.purchasePrice || 0) * baseQty
+  }, 0)
+  const billProfit = inv.grandTotal - billCost
+  const billMargin = inv.grandTotal > 0 ? (billProfit / inv.grandTotal) * 100 : 0
 
   const printInvoice = () => {
     const printWindow = window.open('', '_blank')
@@ -119,6 +131,41 @@ export function InvoiceView({ invoiceId, onNavigate, autoPrint }: { invoiceId: s
         )}
         {onNavigate && <button onClick={() => onNavigate('returns?sourceId=' + invoiceId)} style={{ ...s.primaryBtn, width: 'auto', padding: '10px 20px', display: 'inline-flex', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.error }}><Icons.Refresh size={16} /> Return</button>}
       </div>
+
+      {/* Internal Owner Profit Banner (Screen Only - Hidden on Print) */}
+      {(inv.type === 'SALE' || inv.docType === 'SALE') && (
+        <div className="no-print" style={{
+          backgroundColor: billProfit >= 0 ? '#F0FDF4' : '#FEF2F2',
+          border: `1.5px solid ${billProfit >= 0 ? '#BBF7D0' : '#FECACA'}`,
+          borderRadius: 12, padding: '14px 20px', marginBottom: 20, maxWidth: 800, margin: '0 auto 20px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexWrap: 'wrap', gap: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 18,
+              backgroundColor: billProfit >= 0 ? '#10B981' : '#EF4444',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <Icons.Trending size={20} color="#FFFFFF" />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: billProfit >= 0 ? '#166534' : '#991B1B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Internal Bill Profit Analysis (Merchant Only)
+              </div>
+              <div style={{ fontSize: 13, color: '#334155', marginTop: 2 }}>
+                Invoice Total: <strong>{formatCurrency(inv.grandTotal)}</strong> · Cost Price: <strong>{formatCurrency(billCost)}</strong>
+              </div>
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 17, fontWeight: 900, color: billProfit >= 0 ? '#15803D' : '#DC2626' }}>
+              {billProfit >= 0 ? '+' : ''}{formatCurrency(billProfit)} ({billMargin.toFixed(1)}%)
+            </div>
+            <div style={{ fontSize: 11, color: '#64748B', fontWeight: 600 }}>Estimated Net Profit</div>
+          </div>
+        </div>
+      )}
 
       <div id="invoice-preview" style={{
         backgroundColor: '#fff', borderRadius: BorderRadius.md, padding: Spacing.xxl,
