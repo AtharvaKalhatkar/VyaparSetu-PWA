@@ -17,6 +17,7 @@ const THEMES: { key: InvoiceTemplate; label: string; desc: string; colors: strin
   { key: 'OCEAN', label: 'Ocean', desc: 'Deep blue wave theme with teal accents, calming & professional', colors: ['#01579b', '#e1f5fe', '#006064'], features: ['Ocean blues', 'Teal accents', 'Calming look', 'Wave motif', 'Professional'] },
   { key: 'SUNSET', label: 'Sunset', desc: 'Vibrant purple-to-orange gradient theme — energetic & modern', colors: ['#7b1fa2', '#fce4ec', '#e65100'], features: ['Purple gradient', 'Warm accents', 'Energetic', 'Creative vibe', 'Modern twist'] },
   { key: 'CORPORATE', label: 'Corporate', desc: 'Steel gray and blue business theme with sharp lines — executive grade', colors: ['#37474f', '#eceff1', '#1565c0'], features: ['Corporate gray', 'Blue accents', 'Sharp lines', 'Executive', 'Minimalist'] },
+  { key: 'DOTTED', label: 'Dotted / Dot-Matrix', desc: 'Dotted and dashed borders with dot-matrix receipt styling — clean & ink-saving', colors: ['#222', '#f9f9f9', '#444'], features: ['Dotted borders', 'Dashed dividers', 'Dot matrix font', 'Ink-saving', 'Thermal receipt style'] },
 ]
 
 export function InvoiceThemeGallery({ selectedTemplate, onSelect, compact }: { selectedTemplate?: InvoiceTemplate; onSelect?: (t: InvoiceTemplate) => void; compact?: boolean }) {

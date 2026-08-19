@@ -75,7 +75,7 @@ export interface Unit {
   id: string; name: string; shortName: string; isActive: boolean
 }
 
-export type InvoiceTemplate = 'STANDARD' | 'COMPACT' | 'DETAILED' | 'CLASSIC' | 'MODERN' | 'PREMIUM' | 'ELEGANT' | 'BOLD' | 'NATURE' | 'OCEAN' | 'SUNSET' | 'CORPORATE'
+export type InvoiceTemplate = 'STANDARD' | 'COMPACT' | 'DETAILED' | 'CLASSIC' | 'MODERN' | 'PREMIUM' | 'ELEGANT' | 'BOLD' | 'NATURE' | 'OCEAN' | 'SUNSET' | 'CORPORATE' | 'DOTTED'
 
 export interface InvoiceSettings {
   prefix: string; template: InvoiceTemplate

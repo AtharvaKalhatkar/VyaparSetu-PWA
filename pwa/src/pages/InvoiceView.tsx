@@ -106,6 +106,7 @@ export function InvoiceView({ invoiceId, onNavigate, autoPrint }: { invoiceId: s
             <option value="OCEAN">Ocean</option>
             <option value="SUNSET">Sunset</option>
             <option value="CORPORATE">Corporate</option>
+            <option value="DOTTED">Dotted / Dot-Matrix</option>
           </select>
         </div>
         {onNavigate && <button onClick={() => onNavigate('returns?sourceId=' + invoiceId)} style={{ ...s.primaryBtn, width: 'auto', padding: '10px 20px', display: 'inline-flex', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.error }}><Icons.Refresh size={16} /> Return</button>}
@@ -117,7 +118,8 @@ export function InvoiceView({ invoiceId, onNavigate, autoPrint }: { invoiceId: s
         fontFamily: "'Segoe UI', Arial, sans-serif", position: 'relative', overflow: 'hidden',
       }}>
         <div style={{ position: 'relative', zIndex: 1 }}>
-        {currentTemplate === 'COMPACT' ? <CompactTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
+        {currentTemplate === 'DOTTED' ? <DottedTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
+         currentTemplate === 'COMPACT' ? <CompactTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
          currentTemplate === 'DETAILED' ? <DetailedTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
          currentTemplate === 'CLASSIC' ? <ClassicTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
          currentTemplate === 'MODERN' ? <ModernTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
@@ -128,7 +130,7 @@ export function InvoiceView({ invoiceId, onNavigate, autoPrint }: { invoiceId: s
          currentTemplate === 'OCEAN' ? <OceanTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
          currentTemplate === 'SUNSET' ? <SunsetTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
          currentTemplate === 'CORPORATE' ? <CorporateTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} /> :
-          <StandardTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} />}
+           <StandardTemplate inv={inv} settings={{ ...settings, template: currentTemplate }} profile={profile} />}
           
           {/* Watermark: Created by VyaparSetu */}
           <div style={{
@@ -856,6 +858,156 @@ function CorporateTemplate({ inv, settings, profile }: { inv: Invoice; settings:
       </div>
       <BankFooter settings={settings} profile={profile} dueAmount={inv.dueAmount} invoiceNo={inv.invoiceNo} />
       {settings.defaultTerms && <div style={{ fontSize: 9, color: '#aaa', padding: '6px 14px', borderTop: `1px solid ${light}`, marginTop: 6 }}>{settings.defaultTerms}</div>}
+    </div>
+  )
+}
+
+function DottedTemplate({ inv, settings, profile }: { inv: Invoice; settings: any; profile: any }) {
+  const dotBorder = '1.5px dashed #333'
+  const lightDotBorder = '1px dotted #888'
+
+  return (
+    <div style={{ padding: '16px', border: '2px dashed #222', borderRadius: '4px', backgroundColor: '#fff', color: '#111', fontFamily: "'Courier New', Courier, monospace, sans-serif" }}>
+      {/* Header Banner */}
+      <div style={{ textAlign: 'center', paddingBottom: '12px', borderBottom: dotBorder }}>
+        <div style={{ fontSize: '20px', fontWeight: '900', letterSpacing: '1px', textTransform: 'uppercase' }}>
+          {profile.businessName || 'TAX INVOICE'}
+        </div>
+        {profile.ownerName && <div style={{ fontSize: '11px', marginTop: '2px' }}>Prop: {profile.ownerName}</div>}
+        {profile.address && <div style={{ fontSize: '11px', color: '#444', marginTop: '2px', whiteSpace: 'pre-line' }}>{profile.address}</div>}
+        <div style={{ fontSize: '11px', marginTop: '4px', display: 'flex', justifyContent: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          {profile.phone && <span><strong>Phone:</strong> {profile.phone}</span>}
+          {profile.gstin && <span><strong>GSTIN:</strong> {profile.gstin}</span>}
+        </div>
+      </div>
+
+      {/* Invoice Meta & Customer Row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: dotBorder, fontSize: '12px', flexWrap: 'wrap', gap: '10px' }}>
+        <div>
+          <div style={{ fontSize: '10px', textTransform: 'uppercase', color: '#666', letterSpacing: '0.5px' }}>Billed To:</div>
+          <div style={{ fontSize: '14px', fontWeight: '800' }}>{inv.partyName || 'Cash Customer'}</div>
+          {inv.shippingAddress && <div style={{ fontSize: '11px', color: '#555', marginTop: '2px' }}>{inv.shippingAddress}</div>}
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div><strong>INVOICE NO:</strong> {settings.prefix}-{inv.invoiceNo.replace(/^[A-Z]+-/, '')}</div>
+          <div><strong>DATE:</strong> {formatDate(inv.date)}</div>
+          {inv.dueDate && <div><strong>DUE DATE:</strong> {formatDate(inv.dueDate)}</div>}
+        </div>
+      </div>
+
+      {/* Dotted Items Table */}
+      <div style={{ margin: '12px 0' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+          <thead>
+            <tr style={{ borderBottom: dotBorder, textAlign: 'left' }}>
+              <th style={{ padding: '6px 4px', width: '30px' }}>#</th>
+              <th style={{ padding: '6px 4px' }}>Item Description</th>
+              <th style={{ padding: '6px 4px', textAlign: 'center' }}>Qty</th>
+              <th style={{ padding: '6px 4px', textAlign: 'right' }}>Rate</th>
+              {settings.enableGst && <th style={{ padding: '6px 4px', textAlign: 'center' }}>GST</th>}
+              <th style={{ padding: '6px 4px', textAlign: 'right' }}>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {inv.items.map((item: any, i: number) => (
+              <tr key={i} style={{ borderBottom: lightDotBorder }}>
+                <td style={{ padding: '6px 4px' }}>{i + 1}</td>
+                <td style={{ padding: '6px 4px' }}>
+                  <strong>{item.itemName}</strong>
+                  {item.sku && <span style={{ fontSize: '10px', color: '#666' }}> ({item.sku})</span>}
+                </td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{item.quantity} {item.unit}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'right' }}>{formatCurrency(item.rate)}</td>
+                {settings.enableGst && <td style={{ padding: '6px 4px', textAlign: 'center' }}>{item.gstRate || 0}%</td>}
+                <td style={{ padding: '6px 4px', textAlign: 'right', fontWeight: '700' }}>{formatCurrency(item.amount)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Dotted Totals Box */}
+      <div style={{ borderTop: dotBorder, paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ flex: 1, minWidth: '220px', fontSize: '11px' }}>
+          <div><strong>Amount in Words:</strong></div>
+          <div style={{ fontStyle: 'italic', marginTop: '2px', color: '#333' }}>{numberToWords(inv.grandTotal)}</div>
+          {inv.notes && (
+            <div style={{ marginTop: '8px', padding: '6px', border: lightDotBorder, borderRadius: '4px' }}>
+              <strong>Notes:</strong> {inv.notes}
+            </div>
+          )}
+        </div>
+
+        <div style={{ minWidth: '240px', border: dotBorder, padding: '10px', borderRadius: '4px', backgroundColor: '#fafafa', fontSize: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+            <span>Subtotal:</span>
+            <span>{formatCurrency(inv.subtotal)}</span>
+          </div>
+          {inv.discountAmount > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', color: '#C53030' }}>
+              <span>Discount:</span>
+              <span>- {formatCurrency(inv.discountAmount)}</span>
+            </div>
+          )}
+          {settings.enableGst && inv.taxAmount > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <span>Tax (GST):</span>
+              <span>{formatCurrency(inv.taxAmount)}</span>
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: dotBorder, paddingTop: '6px', marginTop: '4px', fontSize: '15px', fontWeight: '900' }}>
+            <span>GRAND TOTAL:</span>
+            <span>{formatCurrency(inv.grandTotal)}</span>
+          </div>
+          {inv.paidAmount > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '11px', color: '#2E7D32' }}>
+              <span>Paid:</span>
+              <span>{formatCurrency(inv.paidAmount)}</span>
+            </div>
+          )}
+          {inv.dueAmount > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2px', fontSize: '12px', fontWeight: '800', color: '#C53030' }}>
+              <span>Balance Due:</span>
+              <span>{formatCurrency(inv.dueAmount)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Dotted Tear Cut Line */}
+      <div style={{ margin: '16px 0', borderBottom: '1.5px dashed #999', textAlign: 'center', position: 'relative' }}>
+        <span style={{ position: 'relative', top: '10px', backgroundColor: '#fff', padding: '0 8px', fontSize: '11px', color: '#777' }}>
+          ✂ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ✂
+        </span>
+      </div>
+
+      {/* Footer & Bank Details */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '20px', fontSize: '11px', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          {profile.bankAccount && (
+            <div style={{ border: lightDotBorder, padding: '8px', borderRadius: '4px', maxWidth: '280px' }}>
+              <div style={{ fontWeight: '800', marginBottom: '2px' }}>BANK DETAILS:</div>
+              <div>Bank: {profile.bankName || 'N/A'}</div>
+              <div>A/C: {profile.bankAccount}</div>
+              <div>IFSC: {profile.bankIfsc || 'N/A'}</div>
+              {profile.upiId && <div>UPI: {profile.upiId}</div>}
+            </div>
+          )}
+          {settings.defaultTerms && (
+            <div style={{ fontSize: '10px', color: '#555', marginTop: '6px', maxWidth: '320px', whiteSpace: 'pre-line' }}>
+              <strong>Terms & Conditions:</strong> {settings.defaultTerms}
+            </div>
+          )}
+        </div>
+
+        <div style={{ textAlign: 'center', minWidth: '180px' }}>
+          <div style={{ height: '40px' }}></div>
+          <div style={{ borderTop: dotBorder, paddingTop: '4px', fontWeight: '700', fontSize: '11px' }}>
+            Authorised Signatory
+          </div>
+          <div style={{ fontSize: '10px', color: '#666' }}>{profile.businessName || ''}</div>
+        </div>
+      </div>
     </div>
   )
 }
