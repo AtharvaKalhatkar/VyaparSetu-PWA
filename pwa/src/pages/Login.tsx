@@ -17,6 +17,7 @@ export function Login({ onLogin }: { onLogin: (name: string, business: string, b
   const [business, setBusiness] = useState('')
   const [businessType, setBusinessType] = useState('RETAIL')
   const [pin, setPin] = useState('')
+  const [showPin, setShowPin] = useState(false)
   const [error, setError] = useState('')
 
   const handleSupabaseAuth = async (e: React.FormEvent) => {
@@ -157,7 +158,21 @@ export function Login({ onLogin }: { onLogin: (name: string, business: string, b
           boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
         }}>
           <h2 style={{ margin: '0 0 20px', fontSize: 18, color: Colors.textPrimary }}>Employee Sign In</h2>
-          <Input label="Enter PIN" value={pin} onChange={setPin} placeholder="Your 4-6 digit PIN" />
+          <div style={{ marginBottom: Spacing.lg }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: Colors.textSecondary, marginBottom: Spacing.xs, textTransform: 'uppercase', letterSpacing: 0.5 }}>Enter PIN</label>
+            <div style={{ position: 'relative' }}>
+              <input type={showPin ? 'text' : 'password'} value={pin} onChange={e => setPin(e.target.value)} placeholder="Your 4-6 digit PIN" maxLength={6} style={{
+                width: '100%', padding: '12px 42px 12px 14px', border: `1px solid ${Colors.border}`, borderRadius: BorderRadius.sm,
+                fontSize: 14, outline: 'none', boxSizing: 'border-box', backgroundColor: Colors.background, color: Colors.textPrimary,
+              }} />
+              <button type="button" onClick={() => setShowPin(!showPin)} title={showPin ? 'Hide PIN' : 'Show PIN'} style={{
+                position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 4, display: 'flex', alignItems: 'center'
+              }}>
+                {showPin ? '🙈' : '👁️'}
+              </button>
+            </div>
+          </div>
           {error && <div style={{ color: Colors.error, fontSize: 13, marginBottom: Spacing.md }}>{error}</div>}
           <button type="submit" style={{
             width: '100%', padding: '14px', backgroundColor: Colors.primary, color: Colors.textLight,

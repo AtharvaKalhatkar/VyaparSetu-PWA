@@ -17,6 +17,7 @@ export function EmployeesPage({ onNavigate }: { onNavigate: (p: string) => void 
   const [phone, setPhone] = useState('')
   const [role, setRole] = useState<'ADMIN' | 'SALES' | 'VIEWER'>('SALES')
   const [pin, setPin] = useState('')
+  const [showPin, setShowPin] = useState(false)
   const [salary, setSalary] = useState('')
   const [joinDate, setJoinDate] = useState(todayISO())
 
@@ -63,7 +64,17 @@ export function EmployeesPage({ onNavigate }: { onNavigate: (p: string) => void 
             ))}
           </div>
         </Field>
-        <Field label="PIN (for login)"><input type="password" value={pin} onChange={e => setPin(e.target.value)} placeholder="4-6 digit PIN" maxLength={6} style={s.input} /></Field>
+        <Field label="PIN (for login)">
+          <div style={{ position: 'relative' }}>
+            <input type={showPin ? 'text' : 'password'} value={pin} onChange={e => setPin(e.target.value)} placeholder="4-6 digit PIN" maxLength={6} style={{ ...s.input, paddingRight: 42 }} />
+            <button type="button" onClick={() => setShowPin(!showPin)} title={showPin ? 'Hide PIN' : 'Show PIN'} style={{
+              position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+              background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 4, display: 'flex', alignItems: 'center'
+            }}>
+              {showPin ? '🙈' : '👁️'}
+            </button>
+          </div>
+        </Field>
         <Field label="Salary (₹/mo)"><input type="number" value={salary} onChange={e => setSalary(e.target.value)} style={s.input} /></Field>
         <div style={{ display: 'flex', gap: Spacing.sm }}>
           {editId && <button onClick={handleDelete} style={{ flex: 1, padding: '14px', backgroundColor: Colors.errorLight, color: Colors.error, border: 'none', borderRadius: BorderRadius.sm, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>Delete</button>}
