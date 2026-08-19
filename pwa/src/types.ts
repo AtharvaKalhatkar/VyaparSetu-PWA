@@ -97,7 +97,7 @@ export interface BusinessProfile {
   businessName: string; ownerName: string; phone: string; email: string
   address: string; gstin: string; pan: string
   bankName: string; bankAccount: string; bankIfsc: string; signature: string
-  upiId?: string; businessType?: string
+  upiId?: string; businessType?: string; businessId?: string
 }
 
 export interface StockAdjustment {

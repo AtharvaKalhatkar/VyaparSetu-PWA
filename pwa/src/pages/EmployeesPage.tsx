@@ -69,9 +69,9 @@ export function EmployeesPage({ onNavigate }: { onNavigate: (p: string) => void 
             <input type={showPin ? 'text' : 'password'} value={pin} onChange={e => setPin(e.target.value)} placeholder="4-6 digit PIN" maxLength={6} style={{ ...s.input, paddingRight: 42 }} />
             <button type="button" onClick={() => setShowPin(!showPin)} title={showPin ? 'Hide PIN' : 'Show PIN'} style={{
               position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-              background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 4, display: 'flex', alignItems: 'center'
+              background: 'none', border: 'none', cursor: 'pointer', color: Colors.textSecondary, display: 'flex', alignItems: 'center'
             }}>
-              {showPin ? '🙈' : '👁️'}
+              {showPin ? <Icons.EyeOff size={18} /> : <Icons.Eye size={18} />}
             </button>
           </div>
         </Field>

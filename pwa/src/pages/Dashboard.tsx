@@ -90,7 +90,9 @@ export function Dashboard({ userName, onNavigate }: { userName: string; onNaviga
         {(!profile.businessName || profile.businessName === 'My Business' || !profile.phone) && (
           <div style={{ backgroundColor: Colors.primaryLight, border: `1.5px solid ${Colors.primary}40`, borderRadius: BorderRadius.md, padding: Spacing.md, marginBottom: Spacing.md, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: Colors.primary }}>⚙️ Set Up Your Business Profile</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: Colors.primary, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Icons.Settings size={14} color={Colors.primary} /> Set Up Your Business Profile
+              </div>
               <div style={{ fontSize: 11, color: Colors.textSecondary, marginTop: 2 }}>Select business vertical, GSTIN, phone & bank details</div>
             </div>
             <button onClick={() => onNavigate('business-profile')} style={{ padding: '8px 12px', backgroundColor: Colors.primary, color: '#fff', border: 'none', borderRadius: BorderRadius.sm, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
@@ -187,7 +189,9 @@ export function Dashboard({ userName, onNavigate }: { userName: string; onNaviga
         <div style={{ padding: '0 16px 12px' }}>
           <div style={{ backgroundColor: Colors.warning + '15', border: `1px solid ${Colors.warning}40`, borderRadius: BorderRadius.md, padding: Spacing.md, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 800, color: Colors.warning }}>⚠️ {lowStockItems.length} Low Stock Item{lowStockItems.length > 1 ? 's' : ''}</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: Colors.warning, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Icons.Warning size={14} color={Colors.warning} /> {lowStockItems.length} Low Stock Item{lowStockItems.length > 1 ? 's' : ''}
+              </div>
               <div style={{ fontSize: 11, color: Colors.textSecondary, marginTop: 2 }}>{lowStockItems.slice(0, 3).map(i => i.name).join(', ')} below minimum level</div>
             </div>
             <button onClick={() => onNavigate('inventory')} style={{ padding: '6px 10px', backgroundColor: Colors.warning, color: '#fff', border: 'none', borderRadius: BorderRadius.sm, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>

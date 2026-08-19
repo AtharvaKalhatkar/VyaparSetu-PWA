@@ -241,15 +241,15 @@ export function Billing({ editId, initialType, onBack, onNavigate }: { editId?: 
           </button>
           
           <button onClick={shareWhatsApp} style={{ backgroundColor: '#25D366', color: '#fff', border: 'none', borderRadius: BorderRadius.sm, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            💬 Share on WhatsApp
+            <Icons.WhatsApp size={18} /> Share on WhatsApp
           </button>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8 }}>
-            <button onClick={resetFormForNext} style={{ backgroundColor: Colors.surfaceVariant, border: `1px solid ${Colors.border}`, color: Colors.textPrimary, borderRadius: BorderRadius.sm, padding: '12px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-              ➕ Create Another
+            <button onClick={resetFormForNext} style={{ backgroundColor: Colors.surfaceVariant, border: `1px solid ${Colors.border}`, color: Colors.textPrimary, borderRadius: BorderRadius.sm, padding: '12px', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Icons.Add size={16} /> Create Another
             </button>
-            <button onClick={() => onNavigate ? onNavigate('dashboard') : resetFormForNext()} style={{ backgroundColor: Colors.primaryLight, border: `1px solid ${Colors.primary}30`, color: Colors.primary, borderRadius: BorderRadius.sm, padding: '12px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-              🏠 Go to Home
+            <button onClick={() => onNavigate ? onNavigate('dashboard') : resetFormForNext()} style={{ backgroundColor: Colors.primaryLight, border: `1px solid ${Colors.primary}30`, color: Colors.primary, borderRadius: BorderRadius.sm, padding: '12px', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Icons.Home size={16} /> Go to Home
             </button>
           </div>
         </div>

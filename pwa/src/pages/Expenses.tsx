@@ -84,8 +84,8 @@ export function Expenses({ onNavigate }: { onNavigate: (p: string) => void }) {
   if (showForm) {
     return (
       <div style={{ padding: Spacing.lg, paddingBottom: 80, maxWidth: 500, margin: '0 auto' }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: Colors.textPrimary, marginBottom: Spacing.lg }}>
-          💸 Add New Expense
+        <div style={{ fontSize: 18, fontWeight: 700, color: Colors.textPrimary, marginBottom: Spacing.lg, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icons.Expense size={20} color={Colors.primary} /> Add New Expense
         </div>
         <Field label="Description">
           <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="e.g. Shop Rent, Office Tea, Electricity Bill" style={s.input} />
@@ -100,9 +100,15 @@ export function Expenses({ onNavigate }: { onNavigate: (p: string) => void }) {
         </Field>
         <Field label="Payment Mode">
           <div style={s.toggleGroup}>
-            <button type="button" onClick={() => setPaymentMode('CASH')} style={s.toggle(paymentMode === 'CASH', Colors.success)}>💵 Cash</button>
-            <button type="button" onClick={() => setPaymentMode('ONLINE')} style={s.toggle(paymentMode === 'ONLINE', Colors.primary)}>📱 UPI / Online</button>
-            <button type="button" onClick={() => setPaymentMode('BANK_TRANSFER')} style={s.toggle(paymentMode === 'BANK_TRANSFER', Colors.info)}>🏛️ Bank</button>
+            <button type="button" onClick={() => setPaymentMode('CASH')} style={{ ...s.toggle(paymentMode === 'CASH', Colors.success), display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              <Icons.Money size={16} /> Cash
+            </button>
+            <button type="button" onClick={() => setPaymentMode('ONLINE')} style={{ ...s.toggle(paymentMode === 'ONLINE', Colors.primary), display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              <Icons.Payment size={16} /> UPI / Online
+            </button>
+            <button type="button" onClick={() => setPaymentMode('BANK_TRANSFER')} style={{ ...s.toggle(paymentMode === 'BANK_TRANSFER', Colors.info), display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              <Icons.Bank size={16} /> Bank
+            </button>
           </div>
         </Field>
         <Field label="Expense Date">
@@ -151,7 +157,7 @@ export function Expenses({ onNavigate }: { onNavigate: (p: string) => void }) {
         <ListSkeleton count={6} />
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: Spacing.huge, color: Colors.textDisabled }}>
-          <div style={{ fontSize: 48, marginBottom: Spacing.md }}>💸</div>
+          <div style={{ marginBottom: Spacing.md }}><Icons.Expense size={48} color={Colors.textDisabled} /></div>
           <div>No expenses found</div>
           <button onClick={() => setShowForm(true)} style={{ ...s.primaryBtn, marginTop: Spacing.md, width: 'auto', padding: '10px 20px' }}>
             + Add Expense

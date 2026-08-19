@@ -369,7 +369,7 @@ export function Header({ title, onBack, onMenuToggle, rightAction }: { title: st
           backgroundColor: 'rgba(255,255,255,0.18)', border: 'none', color: '#fff', padding: '4px 10px',
           borderRadius: 14, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4
         }}>
-          {syncing ? '⌛ Syncing...' : '🔄 Cloud Sync'}
+          <Icons.Refresh size={13} style={{ animation: syncing ? 'spin 1s linear infinite' : undefined }} /> {syncing ? 'Syncing...' : 'Cloud Sync'}
         </button>
         {rightAction && <div style={{ color: '#fff' }}>{rightAction}</div>}
       </div>
