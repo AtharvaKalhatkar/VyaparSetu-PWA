@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react'
 import { Colors, Spacing } from './theme'
 import { useAuth } from './store/auth'
+import { DB } from './utils/storage'
 import { seedData } from './utils/seed'
 import { Header, TabBar, Drawer, Sidebar, PAGE_TITLES } from './pages/Layout'
 import { Login } from './pages/Login'
@@ -248,16 +249,24 @@ export default function App() {
     }
   }
 
+  const profile = DB.businessProfile.get()
+  const displayBizName = (profile.businessName && profile.businessName !== 'My Business')
+    ? profile.businessName
+    : (activeCompany?.name && activeCompany.name !== 'My Business')
+      ? activeCompany.name
+      : 'My Business'
+  const displayOwnerName = profile.ownerName || userName || 'Owner'
+
   return (
     <VerticalProvider>
     <ToastProvider>
     <div onClick={e => { const t = (e.target as HTMLElement).closest('[data-haptic]') as HTMLElement; if (t) try { navigator.vibrate?.(parseInt(t.dataset.haptic || '10') || 10) } catch (e) { console.error('vibrate failed', e) } }} style={{ height: '100vh', display: 'flex', backgroundColor: Colors.background }} className={darkMode ? 'vs-dark' : ''}>
-      <Sidebar page={page} onNavigate={navigate} companyName={activeCompany?.name} onCompanySwitch={() => setShowCompanySwitcher(true)} />
+      <Sidebar page={page} onNavigate={navigate} companyName={displayBizName} onCompanySwitch={() => setShowCompanySwitcher(true)} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
         <Header title={title} onBack={showBack ? goBack : undefined} onMenuToggle={() => setDrawerOpen(true)}
-          rightAction={activeCompany ? <button onClick={() => setShowCompanySwitcher(true)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, opacity: 0.9 }}>
-            {activeCompany.name} <span style={{ fontSize: 8 }}>▼</span>
-          </button> : undefined}
+          rightAction={<button onClick={() => setShowCompanySwitcher(true)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 700, opacity: 0.95 }}>
+            🏢 {displayBizName} <span style={{ fontSize: 8 }}>▼</span>
+          </button>}
         />
         <div key={pageKey.current} style={{
           flex: 1, overflow: 'auto',
@@ -266,8 +275,8 @@ export default function App() {
           {renderPage()}
         </div>
       </div>
-      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onNavigate={navigate} userName={userName} onLogout={() => { logout(); setPage('dashboard'); setDrawerOpen(false) }}
-        companyName={activeCompany?.name} onCompanySwitch={() => { setDrawerOpen(false); setShowCompanySwitcher(true) }}
+      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onNavigate={navigate} userName={displayOwnerName} onLogout={() => { logout(); setPage('dashboard'); setDrawerOpen(false) }}
+        companyName={displayBizName} onCompanySwitch={() => { setDrawerOpen(false); setShowCompanySwitcher(true) }}
       />
       <TabBar page={page} onNavigate={navigate} onMore={() => setDrawerOpen(true)} />
       <CompanySwitcher open={showCompanySwitcher} onClose={() => setShowCompanySwitcher(false)} />

@@ -103,7 +103,10 @@ export function Dashboard({ userName, onNavigate }: { userName: string; onNaviga
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
             <div style={{ fontSize: 12, color: Colors.textSecondary, marginBottom: 2 }}>{greeting()}</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: Colors.textPrimary }}>{userName}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: Colors.textPrimary }}>{profile.ownerName || userName || 'Owner'}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: Colors.primary, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Icons.Building size={14} color={Colors.primary} /> {profile.businessName || 'My Business'}
+            </div>
           </div>
           <button onClick={() => onNavigate('billing')} style={{
             padding: '10px 18px', borderRadius: BorderRadius.md,
