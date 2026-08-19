@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { DB } from '../utils/storage'
+import { syncAccountOnLogin } from '../utils/cloudSync'
 
 export function useAuth() {
   const [loggedIn, setLoggedIn] = useState(localStorage.getItem('vs_loggedIn') === 'true')
@@ -18,6 +19,12 @@ export function useAuth() {
       DB.businessProfile.save({ ...profile, businessName: biz, ownerName: name, businessType: bizType as any })
     }
     setLoggedIn(true); setUserName(name); setBusinessName(biz); setUserRole(finalRole)
+    syncAccountOnLogin(biz).then(count => {
+      if (count > 0) {
+        console.log(`Successfully synced ${count} cloud records for ${biz}`)
+        window.location.reload()
+      }
+    })
   }, [])
 
   const setRole = useCallback((role: 'ADMIN' | 'SALES' | 'VIEWER') => {

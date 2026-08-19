@@ -1,3 +1,4 @@
+import React, { useState } from 'react'
 import { useVertical } from '../context/VerticalContext'
 import { Colors, Spacing, BorderRadius, Shadows } from '../theme'
 import { Icons } from '../utils/Icons'
@@ -329,6 +330,23 @@ export function Sidebar({ page, onNavigate, companyName, onCompanySwitch }: { pa
 }
 
 export function Header({ title, onBack, onMenuToggle, rightAction }: { title: string; onBack?: () => void; onMenuToggle?: () => void; rightAction?: React.ReactNode }) {
+  const [syncing, setSyncing] = useState(false)
+
+  const handleManualSync = async () => {
+    setSyncing(true)
+    const biz = localStorage.getItem('vs_businessName') || ''
+    const { pullDataFromCloud, pushDataToCloud } = await import('../utils/cloudSync')
+    await pushDataToCloud(biz)
+    const result = await pullDataFromCloud(biz)
+    setSyncing(false)
+    if (result.restoredCount > 0) {
+      alert(`Synced ${result.restoredCount} items from Cloud! Reloading data...`)
+      window.location.reload()
+    } else {
+      alert('Cloud Sync Complete! Your PC and Mobile are fully synchronized.')
+    }
+  }
+
   return (
     <div className="no-print" style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -346,7 +364,15 @@ export function Header({ title, onBack, onMenuToggle, rightAction }: { title: st
         ) : null}
         <h1 style={{ fontSize: 18, fontWeight: 700, color: '#fff', margin: 0, letterSpacing: '-0.3px' }}>{title}</h1>
       </div>
-      {rightAction && <div style={{ color: '#fff' }}>{rightAction}</div>}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <button onClick={handleManualSync} disabled={syncing} title="Sync PC & Mobile Data" style={{
+          backgroundColor: 'rgba(255,255,255,0.18)', border: 'none', color: '#fff', padding: '4px 10px',
+          borderRadius: 14, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4
+        }}>
+          {syncing ? '⌛ Syncing...' : '🔄 Cloud Sync'}
+        </button>
+        {rightAction && <div style={{ color: '#fff' }}>{rightAction}</div>}
+      </div>
     </div>
   )
 }

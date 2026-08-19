@@ -11,7 +11,11 @@ function get<T>(key: string, fallback: T): T {
   catch (e) { console.error('Storage read error for', key, e); return fallback }
 }
 function set<T>(key: string, val: T) {
-  try { localStorage.setItem(getStorageKey(key), JSON.stringify(val)) }
+  try {
+    localStorage.setItem(getStorageKey(key), JSON.stringify(val))
+    // Trigger background cloud sync
+    import('./cloudSync').then(m => m.pushDataToCloud())
+  }
   catch (e) { console.error('Storage write error for', key, e) }
 }
 
