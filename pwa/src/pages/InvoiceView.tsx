@@ -26,6 +26,7 @@ function numberToWords(n: number): string {
 }
 
 import { printThermalInvoice } from '../utils/thermalPrinter'
+import { sanitizeHtml } from '../utils/security'
 
 export function InvoiceView({ invoiceId, onNavigate, autoPrint }: { invoiceId: string; onNavigate?: (p: string) => void; autoPrint?: boolean }) {
   const inv = DB.invoices.byId(invoiceId)
@@ -47,8 +48,9 @@ export function InvoiceView({ invoiceId, onNavigate, autoPrint }: { invoiceId: s
     const printWindow = window.open('', '_blank')
     if (!printWindow) { window.print(); return }
     const allStyles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]')).map(el => el.outerHTML).join('\n')
+    const contentHtml = sanitizeHtml(document.getElementById('invoice-preview')?.innerHTML || '<p>Preview not available</p>')
     printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice ${inv.invoiceNo}</title>${allStyles}<style>body { margin: 0; padding: 15px; font-family: 'Segoe UI', Arial, sans-serif; } .no-print { display: none !important; } @page { margin: 10mm; } @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }</style></head><body>
-      ${document.getElementById('invoice-preview')?.innerHTML || '<p>Preview not available</p>'}
+      ${contentHtml}
     </body></html>`)
     printWindow.document.close()
     setTimeout(() => { try { printWindow.print(); printWindow.close() } catch (e) { console.error('print failed', e) } }, 800)
@@ -58,8 +60,9 @@ export function InvoiceView({ invoiceId, onNavigate, autoPrint }: { invoiceId: s
     const w = window.open('', '_blank')
     if (!w) { window.print(); return }
     const allStyles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]')).map(el => el.outerHTML).join('\n')
+    const contentHtml = sanitizeHtml(document.getElementById('invoice-preview')?.innerHTML || '<p>Preview not available</p>')
     w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice ${inv.invoiceNo}</title>${allStyles}<style>body { margin: 20px; font-family: 'Segoe UI', Arial, sans-serif; } .no-print { display: none !important; } @page { margin: 10mm; }</style></head><body>
-      ${document.getElementById('invoice-preview')?.innerHTML || '<p>Preview not available</p>'}
+      ${contentHtml}
       <p style="text-align:center;color:#888;font-size:11px">Use Ctrl+P → Save as PDF to download</p>
     </body></html>`)
     w.document.close()

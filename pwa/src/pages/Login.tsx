@@ -4,6 +4,7 @@ import { s } from '../utils/styles'
 import { DB } from '../utils/storage'
 import { ALL_VERTICALS } from '../verticals'
 import { supabase } from '../utils/supabase'
+import { hashPin } from '../utils/security'
 import type { EmployeeRole } from '../types'
 
 export function Login({ onLogin }: { onLogin: (name: string, business: string, businessType?: string, role?: EmployeeRole) => void }) {
@@ -55,10 +56,12 @@ export function Login({ onLogin }: { onLogin: (name: string, business: string, b
     onLogin(name.trim(), business.trim(), businessType)
   }
 
-  const handleEmployeeSubmit = (e: React.FormEvent) => {
+  const handleEmployeeSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    const emp = DB.employees.list().find(e => e.pin === pin.trim())
+    const inputPin = pin.trim()
+    const inputHash = await hashPin(inputPin)
+    const emp = DB.employees.list().find(e => e.pin === inputPin || e.pin === inputHash)
     if (!emp) { setError('Invalid PIN'); return }
     const profile = DB.businessProfile.get()
     onLogin(emp.name, profile.businessName || 'My Business', '__EMPLOYEE__', emp.role)

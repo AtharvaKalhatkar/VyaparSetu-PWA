@@ -38,14 +38,25 @@ export function BackupRestore() {
       try {
         const text = await file.text()
         const backup = JSON.parse(text)
-        if (!backup.data || !backup.version) { toast('Invalid backup file', 'error'); setImporting(false); return }
-        if (!confirm('This will OVERWRITE all current data. Continue?')) { setImporting(false); return }
+        if (!backup.data || !backup.version || typeof backup.data !== 'object') {
+          toast('Invalid backup format', 'error')
+          setImporting(false)
+          return
+        }
+        if (!confirm('This will OVERWRITE all current business data. Continue?')) {
+          setImporting(false)
+          return
+        }
+        let restoredCount = 0
         Object.entries(backup.data).forEach(([key, value]) => {
-          localStorage.setItem(key, JSON.stringify(value))
+          if (key.startsWith('vs_')) {
+            localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value))
+            restoredCount++
+          }
         })
-        toast(`Restored ${Object.keys(backup.data).length} data sets! Please refresh the app.`, 'success')
+        toast(`Restored ${restoredCount} validated data sets! Please refresh the app.`, 'success')
         DB.auditLogs.save({ id: generateId(), entity: 'SYSTEM', entityId: '', action: 'CREATE', user: 'Admin', timestamp: new Date().toISOString(), description: 'Data backup imported' })
-      } catch { toast('Failed to import backup', 'error') }
+      } catch { toast('Failed to import backup file', 'error') }
       setImporting(false)
     }
     input.click()

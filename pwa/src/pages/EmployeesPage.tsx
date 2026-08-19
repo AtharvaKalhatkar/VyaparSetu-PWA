@@ -5,6 +5,7 @@ import { DB } from '../utils/storage'
 import { generateId, todayISO } from '../utils/formatting'
 import { Icons } from '../utils/Icons'
 import { useDelayedRender, ListSkeleton } from '../utils/smooth'
+import { hashPin } from '../utils/security'
 import type { EmployeeRole } from '../types'
 
 export function EmployeesPage({ onNavigate }: { onNavigate: (p: string) => void }) {
@@ -34,9 +35,10 @@ export function EmployeesPage({ onNavigate }: { onNavigate: (p: string) => void 
     setEditId(id); setName(emp.name); setPhone(emp.phone); setRole(emp.role as EmployeeRole); setPin(emp.pin || ''); setSalary(String(emp.salary)); setJoinDate(emp.joiningDate); setShowForm(true)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) return
-    DB.employees.save({ id: editId || generateId(), name: name.trim(), phone: phone.trim(), role, pin: pin.trim() || undefined, salary: parseFloat(salary) || 0, joiningDate: editId ? joinDate : todayISO(), isActive: true })
+    const hashedPin = pin.trim() ? await hashPin(pin.trim()) : undefined
+    DB.employees.save({ id: editId || generateId(), name: name.trim(), phone: phone.trim(), role, pin: hashedPin, salary: parseFloat(salary) || 0, joiningDate: editId ? joinDate : todayISO(), isActive: true })
     setShowForm(false); setEditId(null); setName(''); setPhone(''); setRole('SALES'); setPin(''); setSalary(''); setJoinDate(todayISO())
   }
 
