@@ -961,14 +961,8 @@ function DottedTemplate({ inv, settings, profile }: { inv: Invoice; settings: an
           </div>
           {inv.paidAmount > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '11px', color: '#2E7D32' }}>
-              <span>Paid:</span>
+              <span>Paid Amount:</span>
               <span>{formatCurrency(inv.paidAmount)}</span>
-            </div>
-          )}
-          {inv.dueAmount > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2px', fontSize: '12px', fontWeight: '800', color: '#C53030' }}>
-              <span>Balance Due:</span>
-              <span>{formatCurrency(inv.dueAmount)}</span>
             </div>
           )}
         </div>
@@ -981,7 +975,7 @@ function DottedTemplate({ inv, settings, profile }: { inv: Invoice; settings: an
         </span>
       </div>
 
-      {/* Footer & Bank Details */}
+      {/* Footer, Bank & UPI QR Code */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '20px', fontSize: '11px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           {profile.bankAccount && (
@@ -1000,7 +994,21 @@ function DottedTemplate({ inv, settings, profile }: { inv: Invoice; settings: an
           )}
         </div>
 
-        <div style={{ textAlign: 'center', minWidth: '180px' }}>
+        {/* 📱 Dotted UPI Payment QR Code Block */}
+        {profile.upiId && (
+          <div style={{ border: dotBorder, padding: '8px 12px', borderRadius: '4px', textAlign: 'center', backgroundColor: '#fafafa', flexShrink: 0 }}>
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(`upi://pay?pa=${encodeURIComponent(profile.upiId)}&pn=${encodeURIComponent(profile.businessName || 'Business')}&am=${inv.grandTotal}&tn=${encodeURIComponent('Inv ' + inv.invoiceNo)}`)}`}
+              alt="UPI QR Code"
+              style={{ width: 85, height: 85, display: 'block', margin: '0 auto' }}
+            />
+            <div style={{ fontSize: '10px', fontWeight: '800', marginTop: '4px', color: '#111' }}>SCAN TO PAY</div>
+            <div style={{ fontSize: '11px', fontWeight: '900', color: Colors.primary }}>{formatCurrency(inv.grandTotal)}</div>
+            <div style={{ fontSize: '9px', color: '#666', marginTop: '2px' }}>UPI: {profile.upiId}</div>
+          </div>
+        )}
+
+        <div style={{ textAlign: 'center', minWidth: '160px' }}>
           <div style={{ height: '40px' }}></div>
           <div style={{ borderTop: dotBorder, paddingTop: '4px', fontWeight: '700', fontSize: '11px' }}>
             Authorised Signatory

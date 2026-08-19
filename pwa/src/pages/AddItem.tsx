@@ -171,14 +171,49 @@ export function AddItem({ editId, onBack, onNavigate, onAddUnit }: { editId?: st
 
       {step === 1 && (
         <div>
-          <Field label="Unit">
-            <select value={unit} onChange={e => setUnit(e.target.value)} style={s.select}>
-              <option value="">Select unit...</option>
-              {units.map(u => <option key={u.id} value={u.shortName}>{u.name} ({u.shortName})</option>)}
-              <option value="Hour">Hour</option>
-              <option value="Day">Day</option>
-              <option value="Trip">Trip</option>
-            </select>
+          <Field label="Unit (Primary Stock Unit)">
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <select
+                value={['Bag', 'Kg', 'Pcs', 'Box', 'Gm', 'Ltr', 'Ml', 'Meter', 'Dozen', 'Packet', 'Set', 'Tin', 'Bucket', 'Drum', 'Carton', 'Bottle', 'Hour', 'Day', 'Trip'].includes(unit) ? unit : '__CUSTOM__'}
+                onChange={e => {
+                  if (e.target.value !== '__CUSTOM__') {
+                    setUnit(e.target.value)
+                  }
+                }}
+                style={{ ...s.select, flex: 1 }}
+              >
+                <option value="Bag">Bag (Bags)</option>
+                <option value="Kg">Kilogram (Kg)</option>
+                <option value="Pcs">Pieces (Pcs)</option>
+                <option value="Box">Box (Boxes)</option>
+                <option value="Gm">Gram (Gm)</option>
+                <option value="Ltr">Litre (Ltr)</option>
+                <option value="Ml">MilliLitre (Ml)</option>
+                <option value="Meter">Meter (m)</option>
+                <option value="Dozen">Dozen (dz)</option>
+                <option value="Packet">Packet (pkt)</option>
+                <option value="Set">Set</option>
+                <option value="Tin">Tin</option>
+                <option value="Bucket">Bucket</option>
+                <option value="Drum">Drum</option>
+                <option value="Carton">Carton</option>
+                <option value="Bottle">Bottle</option>
+                <option value="Hour">Hour</option>
+                <option value="Day">Day</option>
+                <option value="Trip">Trip</option>
+                {units.filter(u => !['Bag', 'Kg', 'Pcs', 'Box', 'Gm', 'Ltr', 'Ml', 'Meter', 'Dozen', 'Packet', 'Set', 'Tin', 'Bucket', 'Drum', 'Carton', 'Bottle', 'Hour', 'Day', 'Trip'].includes(u.shortName)).map(u => (
+                  <option key={u.id} value={u.shortName}>{u.name} ({u.shortName})</option>
+                ))}
+                <option value="__CUSTOM__">✏️ Custom Unit...</option>
+              </select>
+              <input
+                type="text"
+                value={unit}
+                onChange={e => setUnit(e.target.value)}
+                placeholder="e.g. Bag, Kg"
+                style={{ ...s.input, width: 110, textAlign: 'center', fontWeight: 700 }}
+              />
+            </div>
           </Field>
           <Field label="Purchase Price (₹)"><input type="number" min="0" value={purchasePrice} onChange={e => setPurchasePrice(e.target.value)} placeholder="0" style={s.input} /></Field>
           <Field label="Selling Price (₹)"><input type="number" min="0" value={sellingPrice} onChange={e => setSellingPrice(e.target.value)} placeholder="0" style={s.input} /></Field>
