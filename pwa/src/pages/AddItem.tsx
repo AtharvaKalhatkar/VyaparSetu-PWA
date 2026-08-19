@@ -194,7 +194,7 @@ export function AddItem({ editId, onBack, onNavigate, onAddUnit }: { editId?: st
           </Field>}
           <div style={{ borderTop: `1px solid ${Colors.divider}`, margin: '12px 0', paddingTop: 12 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: Colors.textPrimary, marginBottom: Spacing.sm }}>Alternative Units</div>
-            <div style={{ fontSize: 11, color: Colors.textSecondary, marginBottom: Spacing.sm }}>Define larger selling units (e.g., Box = 12 Pcs, Outer = 72 Pcs)</div>
+            <div style={{ fontSize: 11, color: Colors.textSecondary, marginBottom: Spacing.sm }}>Define alternative units for loose sales or multi-packs (e.g., 1 Bag = 20 Kg, or 1 Box = 12 Pcs)</div>
             {multiUnits.map((mu, idx) => (
               <div key={idx} style={{ ...s.row, gap: Spacing.xs, marginBottom: Spacing.xs, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 11, fontWeight: 600 }}>1 </span>
