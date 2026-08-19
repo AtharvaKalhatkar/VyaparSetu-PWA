@@ -1,6 +1,6 @@
 import { DB } from './storage'
-import { generateId, todayISO } from './formatting'
-import type { Invoice, Item } from '../types'
+import { generateId } from './formatting'
+import type { Item } from '../types'
 
 /**
  * Calculate the correct running balance for a party from all their ledger entries.
@@ -11,18 +11,37 @@ import type { Invoice, Item } from '../types'
 export function calcPartyBalance(partyId: string): number {
   const entries = DB.ledger.forParty(partyId)
   return entries.reduce((bal, e) => {
-    if (e.type === 'SALE') return bal + e.amount      // customer owes us more
-    if (e.type === 'PURCHASE') return bal - e.amount   // we owe supplier more (negative = payable)
-    if (e.type === 'RECEIPT') return bal - e.amount     // customer paid us
-    if (e.type === 'PAYMENT') return bal + e.amount     // we paid supplier
+    if (e.type === 'SALE') return bal + e.amount
+    if (e.type === 'PURCHASE') return bal - e.amount
+    if (e.type === 'RECEIPT') return bal - e.amount
+    if (e.type === 'PAYMENT') return bal + e.amount
     return bal
   }, 0)
 }
 
+/**
+ * Convert quantity in any secondary unit to base stock quantity.
+ * Handles case-insensitivity, whitespace trimming, and NaN guards.
+ */
 export function toBaseQty(item: Item, quantity: number, unit: string): number {
-  if (!unit || unit === item.unit) return quantity
-  const conv = item.units?.find(u => u.unitName === unit || u.unitId === unit)?.conversionRate || 1
-  return quantity * conv
+  const safeQty = typeof quantity === 'number' && !isNaN(quantity) ? quantity : parseFloat(String(quantity || 0)) || 0
+  if (!unit || !item || !item.unit) return safeQty
+  
+  const normUnit = unit.trim().toLowerCase()
+  const normBaseUnit = item.unit.trim().toLowerCase()
+  
+  if (normUnit === normBaseUnit) return safeQty
+  
+  const secondary = item.units?.find(u => 
+    (u.unitName && u.unitName.trim().toLowerCase() === normUnit) || 
+    (u.unitId && u.unitId.trim().toLowerCase() === normUnit)
+  )
+  
+  if (secondary && typeof secondary.conversionRate === 'number' && secondary.conversionRate > 0) {
+    return safeQty * secondary.conversionRate
+  }
+  
+  return safeQty
 }
 
 /**
@@ -32,25 +51,30 @@ export function toBaseQty(item: Item, quantity: number, unit: string): number {
  */
 export function applyStockChanges(
   invoiceItems: { itemId: string; quantity: number; unit: string }[],
-  type: 'SALE' | 'PURCHASE',
+  type: string,
   reverse: boolean = false
 ) {
+  // ONLY SALE and PURCHASE (and their returns) affect physical inventory!
+  // Estimates, Orders, Quotes, Challans DO NOT affect stock.
+  if (type !== 'SALE' && type !== 'PURCHASE') return
+
+  const itemsList = DB.items.list()
   const itemMap = new Map<string, Item>(
-    DB.items.list().map(i => [i.id, { ...i }])
+    itemsList.map(i => [i.id, { ...i }])
   )
 
   invoiceItems.forEach(line => {
     const item = itemMap.get(line.itemId)
     if (!item) return
     const baseQty = toBaseQty(item, line.quantity, line.unit)
+    const current = typeof item.currentStock === 'number' && !isNaN(item.currentStock) ? item.currentStock : parseFloat(String(item.currentStock || 0)) || 0
 
     if (type === 'PURCHASE') {
-      item.currentStock = reverse
-        ? item.currentStock - baseQty
-        : item.currentStock + baseQty
-    } else {
-      const delta = reverse ? baseQty : -baseQty
-      item.currentStock = item.currentStock + delta
+      // Purchase adds stock. Reverse (cancel/delete purchase) subtracts stock.
+      item.currentStock = reverse ? current - baseQty : current + baseQty
+    } else if (type === 'SALE') {
+      // Sale subtracts stock. Reverse (cancel/delete sale) adds stock back.
+      item.currentStock = reverse ? current + baseQty : current - baseQty
     }
     itemMap.set(line.itemId, item)
   })
@@ -95,7 +119,6 @@ export function createLedgerEntry(
 
 /**
  * Safely delete an invoice: reverses stock and removes original ledger entry.
- * Only reverses stock for actual SALE/PURCHASE invoices (not orders, estimates, challans, or returns).
  */
 export function deleteInvoiceWithReversal(invoiceId: string) {
   const inv = DB.invoices.byId(invoiceId)
@@ -107,7 +130,7 @@ export function deleteInvoiceWithReversal(invoiceId: string) {
 
   if (inv.docType === 'SALE' || inv.docType === 'PURCHASE') {
     // Standard invoices: reverse stock (sale → add back, purchase → subtract)
-    applyStockChanges(stockItems, inv.type as 'SALE' | 'PURCHASE', true)
+    applyStockChanges(stockItems, inv.type, true)
     
     // Remove original ledger entry matching invoice number
     const partyEntries = DB.ledger.forParty(inv.partyId)
@@ -115,12 +138,13 @@ export function deleteInvoiceWithReversal(invoiceId: string) {
     if (originalEntry) {
       DB.ledger.delete(originalEntry.id)
     }
-  } else if (inv.docType === 'SALE_RETURN' || inv.docType === 'PURCHASE_RETURN') {
-    // Returns: undo the return by applying the FORWARD operation
-    applyStockChanges(stockItems, inv.type as 'SALE' | 'PURCHASE', false)
+  } else if (inv.docType === 'SALE_RETURN') {
+    // Deleting a Sale Return (which had added stock back) → subtract stock back out
+    applyStockChanges(stockItems, 'SALE', false)
+  } else if (inv.docType === 'PURCHASE_RETURN') {
+    // Deleting a Purchase Return (which had subtracted stock) → add stock back
+    applyStockChanges(stockItems, 'PURCHASE', false)
   }
-  // Orders (SALE_ORDER/PURCHASE_ORDER), estimates (ESTIMATE), challans (CHALLAN):
-  // don't modify stock, so no reversal needed
 
   DB.invoices.delete(invoiceId)
   return true

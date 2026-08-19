@@ -3,6 +3,7 @@ import { Colors, Spacing, BorderRadius } from '../theme'
 import { s, Field } from '../utils/styles'
 import { DB } from '../utils/storage'
 import { generateId, todayISO } from '../utils/formatting'
+import { toBaseQty } from '../utils/invoiceOps'
 import { Icons } from '../utils/Icons'
 import type { StockAdjustment as SA } from '../types'
 
@@ -29,9 +30,10 @@ export function StockAdjustment() {
       id: generateId(), itemId, itemName: item.name,
       type, quantity: q, reason, date, notes,
     }
-    DB.stockAdjustments.save(adj)
-    if (type === 'ADD') item.currentStock += q
-    else item.currentStock = Math.max(0, item.currentStock - q)
+    const baseAdjQty = toBaseQty(item, q, item.unit)
+    const current = typeof item.currentStock === 'number' && !isNaN(item.currentStock) ? item.currentStock : 0
+    if (type === 'ADD') item.currentStock = current + baseAdjQty
+    else item.currentStock = Math.max(0, current - baseAdjQty)
     DB.items.save(item)
     setReason('')
     setNotes('')
