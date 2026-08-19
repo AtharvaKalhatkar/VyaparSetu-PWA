@@ -3,12 +3,16 @@ import { Colors, Spacing, BorderRadius, Shadows } from '../theme'
 import { s } from '../utils/styles'
 import { useAuth } from '../store/auth'
 import { Icons } from '../utils/Icons'
+import { DB } from '../utils/storage'
 
 export function Settings({ onNavigate, onLogout, isDarkMode, onToggleDarkMode }: { onNavigate: (p: string) => void; onLogout: () => void; isDarkMode?: boolean; onToggleDarkMode?: (v: boolean) => void }) {
   const { userName, businessName } = useAuth()
+  const profile = DB.businessProfile.get()
+  const businessId = profile.businessId || localStorage.getItem('vs_business_id') || 'VS-682914'
 
   const items = [
-    { icon: <Icons.Building size={20} />, label: 'Business Profile', desc: businessName, onClick: () => onNavigate('business-profile') },
+    { icon: <Icons.Building size={20} />, label: 'Business Profile & ID', desc: `ID: ${businessId} • ${businessName}`, onClick: () => onNavigate('business-profile') },
+    { icon: <Icons.Lock size={20} />, label: 'Change Password', desc: 'Update account password', onClick: () => onNavigate('business-profile') },
     { icon: <Icons.Settings size={20} />, label: 'Invoice Settings', desc: 'Prefix, template, terms', onClick: () => onNavigate('invoice-settings') },
     { icon: <Icons.Download size={20} />, label: 'Import / Export', desc: 'Backup, bulk import', onClick: () => onNavigate('data-export') },
     { icon: <Icons.Building size={20} />, label: 'Manage Companies', desc: 'Switch or add companies', onClick: () => onNavigate('companies') },
@@ -21,6 +25,9 @@ export function Settings({ onNavigate, onLogout, isDarkMode, onToggleDarkMode }:
         <div style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: Colors.primaryLight + '30', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}><Icons.People size={28} /></div>
         <div style={{ fontWeight: 700, fontSize: 18, color: Colors.textPrimary }}>{userName}</div>
         <div style={{ fontSize: 13, color: Colors.textSecondary }}>{businessName}</div>
+        <div style={{ display: 'inline-block', marginTop: 6, padding: '3px 10px', backgroundColor: Colors.primaryLight, color: Colors.primary, borderRadius: 12, fontSize: 11, fontWeight: 800, fontFamily: 'monospace' }}>
+          ID: {businessId}
+        </div>
       </div>
       {items.map((item, i) => (
         <div key={i} onClick={() => item.onClick()} style={{ ...s.card, ...s.row, marginBottom: Spacing.sm, cursor: 'pointer' }}>
