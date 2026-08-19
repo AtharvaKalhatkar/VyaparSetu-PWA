@@ -31,6 +31,7 @@ export function Billing({ editId, initialType, onBack, onNavigate }: { editId?: 
   const [notes, setNotes] = useState(existing?.notes || '')
   const [discount, setDiscount] = useState(String(existing?.discountAmount || 0))
   const [saved, setSaved] = useState(false)
+  const [lastSavedInv, setLastSavedInv] = useState<any>(null)
   const [showPicker, setShowPicker] = useState(false)
   const [showPartySheet, setShowPartySheet] = useState(false)
   const [showAiSuggestions, setShowAiSuggestions] = useState(false)
@@ -160,8 +161,8 @@ export function Billing({ editId, initialType, onBack, onNavigate }: { editId?: 
       // Update ledger
       DB.ledger.list().filter(l => l.reference === inv.invoiceNo && (l.type === 'SALE' || l.type === 'PURCHASE')).forEach(l => DB.ledger.delete(l.id))
       createLedgerEntry(partyId, party?.name || '', type === 'PURCHASE' ? 'PURCHASE' : 'SALE', grandTotal, 'CREDIT', inv.invoiceNo, existing ? 'Invoice updated' : type === 'PURCHASE' ? 'Purchase invoice' : 'Sale invoice', date)
+      setLastSavedInv(inv)
       setSaved(true)
-      setTimeout(() => { if (onBack) onBack(); else { setLines([]); setPartyId(''); setDate(todayISO()); setDiscount(''); setNotes(''); setSaved(false) } }, 1500)
     } catch (e) {
       toast('Error saving invoice: ' + (e instanceof Error ? e.message : 'Unknown error'), 'error')
     }
@@ -206,11 +207,54 @@ export function Billing({ editId, initialType, onBack, onNavigate }: { editId?: 
 
   const cannotSave = isReadOnly || !partyId || lines.length === 0 || lines.every(l => !safeNum(l.qty) || !safeNum(l.rate))
 
-  if (saved) {
-    return <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-      <Icons.Check size={48} color={Colors.success} />
-      <div style={{ fontSize: 20, fontWeight: 700, color: Colors.success, marginTop: Spacing.md }}>{existing ? 'Invoice Updated!' : 'Invoice Created!'}</div>
-    </div>
+  if (saved && lastSavedInv) {
+    const shareWhatsApp = () => {
+      const text = `Invoice #${lastSavedInv.invoiceNo} for ${lastSavedInv.partyName} of amount ${formatCurrency(lastSavedInv.grandTotal)}. Thank you for doing business with us!`
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+    }
+
+    const resetFormForNext = () => {
+      setLines([])
+      setPartyId('')
+      setDate(todayISO())
+      setDiscount('')
+      setNotes('')
+      setSaved(false)
+      setLastSavedInv(null)
+    }
+
+    return (
+      <div style={{ padding: Spacing.xl, textAlign: 'center', maxWidth: 460, margin: '40px auto 80px', backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+        <div style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: Colors.successLight, color: Colors.success, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <Icons.Check size={36} />
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: Colors.textPrimary, marginBottom: 4 }}>
+          {existing ? 'Invoice Updated!' : 'Invoice Created Successfully!'}
+        </div>
+        <div style={{ fontSize: 14, color: Colors.textSecondary, marginBottom: 20 }}>
+          Invoice <strong>#{lastSavedInv.invoiceNo}</strong> • {lastSavedInv.partyName} • <strong style={{ color: Colors.primary }}>{formatCurrency(lastSavedInv.grandTotal)}</strong>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <button onClick={() => onNavigate?.('invoice-view?id=' + lastSavedInv.id)} style={{ ...s.primaryBtn, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px' }}>
+            <Icons.Invoice size={18} /> View & Print Invoice
+          </button>
+          
+          <button onClick={shareWhatsApp} style={{ backgroundColor: '#25D366', color: '#fff', border: 'none', borderRadius: BorderRadius.sm, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            💬 Share on WhatsApp
+          </button>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8 }}>
+            <button onClick={resetFormForNext} style={{ backgroundColor: Colors.surfaceVariant, border: `1px solid ${Colors.border}`, color: Colors.textPrimary, borderRadius: BorderRadius.sm, padding: '12px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              ➕ Create Another
+            </button>
+            <button onClick={() => onNavigate ? onNavigate('dashboard') : resetFormForNext()} style={{ backgroundColor: Colors.primaryLight, border: `1px solid ${Colors.primary}30`, color: Colors.primary, borderRadius: BorderRadius.sm, padding: '12px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+              🏠 Go to Home
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

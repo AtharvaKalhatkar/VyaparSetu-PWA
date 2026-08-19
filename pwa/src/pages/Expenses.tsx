@@ -1,15 +1,18 @@
 import React, { useState, useMemo, useReducer } from 'react'
-import { Colors, Spacing } from '../theme'
-import { s } from '../utils/styles'
+import { Colors, Spacing, BorderRadius } from '../theme'
+import { s, Field } from '../utils/styles'
 import { DB } from '../utils/storage'
-import { formatCurrency, formatDate } from '../utils/formatting'
+import { formatCurrency, formatDate, generateId, todayISO } from '../utils/formatting'
 import { Icons } from '../utils/Icons'
-import { useDelayedRender, ListSkeleton } from '../utils/smooth'
+import { useDelayedRender, ListSkeleton, useToast } from '../utils/smooth'
 import { useFuzzySearch } from '../utils/useFuzzySearch'
 import { useBatchSelect, BatchActionBar } from '../utils/useBatchSelect'
 import { ExportBar } from '../utils/ExportBar'
 
+const EXPENSE_CATEGORIES = ['General', 'Rent', 'Electricity & Water', 'Salary', 'Tea & Snacks', 'Fuel & Travel', 'Maintenance', 'Marketing', 'Supplies', 'Others']
+
 export function Expenses({ onNavigate }: { onNavigate: (p: string) => void }) {
+  const { toast } = useToast()
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState('ALL')
   const [showForm, setShowForm] = useState(false)
@@ -17,12 +20,19 @@ export function Expenses({ onNavigate }: { onNavigate: (p: string) => void }) {
   const [rev, bumpRev] = useReducer(x => x + 1, 0)
   const ready = useDelayedRender(200)
 
+  // Form State
+  const [desc, setDesc] = useState('')
+  const [category, setCategory] = useState('General')
+  const [amount, setAmount] = useState('')
+  const [paymentMode, setPaymentMode] = useState<'CASH' | 'ONLINE' | 'BANK_TRANSFER'>('CASH')
+  const [date, setDate] = useState(todayISO())
+
   const allExpenses = useMemo(() =>
     [...DB.expenses.list()].sort((a, b) => b.date.localeCompare(a.date)),
   [rev])
 
   const cats = useMemo(() => {
-    const s = new Set(allExpenses.map(e => e.category))
+    const s = new Set([...EXPENSE_CATEGORIES, ...allExpenses.map(e => e.category)])
     return ['ALL', ...Array.from(s)]
   }, [allExpenses])
 
@@ -40,6 +50,74 @@ export function Expenses({ onNavigate }: { onNavigate: (p: string) => void }) {
     batch.selectedIds.forEach(id => DB.expenses.delete(id))
     batch.clearSelection()
     setBatchMode(false); bumpRev()
+  }
+
+  const handleSaveExpense = () => {
+    const amt = parseFloat(amount)
+    if (!desc.trim()) { alert('Please enter expense description'); return }
+    if (isNaN(amt) || amt <= 0) { alert('Please enter a valid amount'); return }
+
+    const expId = generateId()
+    DB.expenses.save({
+      id: expId,
+      description: desc.trim(),
+      category: category.trim() || 'General',
+      amount: amt,
+      date,
+      paymentMode,
+    })
+
+    DB.auditLogs.save({
+      id: generateId(), entity: 'EXPENSE', entityId: expId, action: 'CREATE',
+      user: 'Admin', timestamp: new Date().toISOString(), description: `Expense added: ${desc} — ${formatCurrency(amt)}`
+    })
+
+    toast('Expense saved successfully!', 'success')
+    setDesc('')
+    setAmount('')
+    setCategory('General')
+    setDate(todayISO())
+    setShowForm(false)
+    bumpRev()
+  }
+
+  if (showForm) {
+    return (
+      <div style={{ padding: Spacing.lg, paddingBottom: 80, maxWidth: 500, margin: '0 auto' }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: Colors.textPrimary, marginBottom: Spacing.lg }}>
+          💸 Add New Expense
+        </div>
+        <Field label="Description">
+          <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="e.g. Shop Rent, Office Tea, Electricity Bill" style={s.input} />
+        </Field>
+        <Field label="Category">
+          <select value={category} onChange={e => setCategory(e.target.value)} style={s.select}>
+            {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </Field>
+        <Field label="Amount (₹)">
+          <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" min="0" step="any" style={s.input} />
+        </Field>
+        <Field label="Payment Mode">
+          <div style={s.toggleGroup}>
+            <button type="button" onClick={() => setPaymentMode('CASH')} style={s.toggle(paymentMode === 'CASH', Colors.success)}>💵 Cash</button>
+            <button type="button" onClick={() => setPaymentMode('ONLINE')} style={s.toggle(paymentMode === 'ONLINE', Colors.primary)}>📱 UPI / Online</button>
+            <button type="button" onClick={() => setPaymentMode('BANK_TRANSFER')} style={s.toggle(paymentMode === 'BANK_TRANSFER', Colors.info)}>🏛️ Bank</button>
+          </div>
+        </Field>
+        <Field label="Expense Date">
+          <input type="date" value={date} onChange={e => setDate(e.target.value)} style={s.input} />
+        </Field>
+        <div style={{ display: 'flex', gap: Spacing.md, marginTop: Spacing.lg }}>
+          <button type="button" onClick={() => setShowForm(false)} style={{ flex: 1, padding: '14px', borderRadius: BorderRadius.sm, border: `1px solid ${Colors.border}`, backgroundColor: 'transparent', color: Colors.textSecondary, fontWeight: 600, cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button type="button" onClick={handleSaveExpense} style={{ flex: 2, ...s.primaryBtn }}>
+            Save Expense
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -62,7 +140,7 @@ export function Expenses({ onNavigate }: { onNavigate: (p: string) => void }) {
       </div>
 
       <div style={{ display: 'flex', gap: Spacing.xs, marginBottom: Spacing.md, flexWrap: 'wrap' }}>
-        {cats.slice(0, 8).map(c => (
+        {cats.slice(0, 10).map(c => (
           <button key={c} onClick={() => setCatFilter(c)} style={s.chip(catFilter === c, c === 'ALL' ? Colors.primary : Colors.warning)}>
             {c === 'ALL' ? 'All' : c}
           </button>
@@ -75,6 +153,9 @@ export function Expenses({ onNavigate }: { onNavigate: (p: string) => void }) {
         <div style={{ textAlign: 'center', padding: Spacing.huge, color: Colors.textDisabled }}>
           <div style={{ fontSize: 48, marginBottom: Spacing.md }}>💸</div>
           <div>No expenses found</div>
+          <button onClick={() => setShowForm(true)} style={{ ...s.primaryBtn, marginTop: Spacing.md, width: 'auto', padding: '10px 20px' }}>
+            + Add Expense
+          </button>
         </div>
       ) : (
         filtered.map(e => (
@@ -103,7 +184,7 @@ export function Expenses({ onNavigate }: { onNavigate: (p: string) => void }) {
                 <span style={{ fontWeight: 600, fontSize: 14, color: Colors.textPrimary }}>{e.description}</span>
                 <span style={{ fontWeight: 700, fontSize: 14, color: Colors.error }}>-{formatCurrency(e.amount)}</span>
               </div>
-              <div style={{ fontSize: 11, color: Colors.textSecondary }}>{e.category} · {formatDate(e.date)}</div>
+              <div style={{ fontSize: 11, color: Colors.textSecondary }}>{e.category} · {formatDate(e.date)} · {e.paymentMode || 'CASH'}</div>
             </div>
           </div>
         ))
@@ -117,7 +198,7 @@ export function Expenses({ onNavigate }: { onNavigate: (p: string) => void }) {
         ]}
       />
 
-      <button onClick={() => setShowForm(true)} style={{
+      <button onClick={() => setShowForm(true)} title="Add Expense" style={{
         position: 'fixed', right: Spacing.lg, bottom: 80, width: 56, height: 56, borderRadius: 28,
         backgroundColor: Colors.primary, color: Colors.textLight, border: 'none', fontSize: 28,
         cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.25)', zIndex: 50,
