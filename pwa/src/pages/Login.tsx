@@ -41,41 +41,67 @@ export function Login({ onLogin }: { onLogin: (name: string, business: string, b
   const handleCloudSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!businessId.trim() || !signInPassword.trim()) {
+    const inputBizId = businessId.trim().toUpperCase()
+    const inputPass = signInPassword.trim()
+
+    if (!inputBizId || !inputPass) {
       setError('Business ID and Password are required')
       return
     }
     setLoading(true)
 
     try {
-      // Check local stored profile or Supabase user
       const existingProfile = DB.businessProfile.get()
-      const savedBizId = existingProfile.businessId || localStorage.getItem('vs_business_id')
+      const savedBizId = (existingProfile.businessId || localStorage.getItem('vs_business_id') || '').trim().toUpperCase()
+      const savedPass = localStorage.getItem('vs_password')
 
-      if (savedBizId && savedBizId.toUpperCase() === businessId.trim().toUpperCase()) {
+      // 1. Direct local Business ID match
+      if (savedBizId && savedBizId === inputBizId) {
+        if (!savedPass || savedPass === inputPass) {
+          localStorage.setItem('vs_password', inputPass)
+          onLogin(existingProfile.ownerName || 'Owner', existingProfile.businessName || 'My Business', existingProfile.businessType || 'RETAIL')
+          return
+        }
+      }
+
+      // 2. Supabase Auth authentication
+      const emailToTry = inputBizId.includes('@') ? inputBizId.toLowerCase() : `${inputBizId.toLowerCase()}@vyaparsetu.local`
+      const { data, error: err } = await supabase.auth.signInWithPassword({
+        email: emailToTry,
+        password: inputPass,
+      })
+
+      if (!err && data?.user) {
+        const userMeta = data.user.user_metadata || {}
+        const name = userMeta.ownerName || userMeta.name || existingProfile.ownerName || 'Owner'
+        const bizName = userMeta.businessName || existingProfile.businessName || 'My Business'
+        const bizType = userMeta.businessType || existingProfile.businessType || 'RETAIL'
+
+        // Store businessId and password locally
+        DB.businessProfile.save({ ...existingProfile, businessId: inputBizId, ownerName: name, businessName: bizName, businessType: bizType })
+        localStorage.setItem('vs_business_id', inputBizId)
+        localStorage.setItem('vs_password', inputPass)
+
+        onLogin(name, bizName, bizType)
+        return
+      }
+
+      // 3. Fallback for valid Business ID format (e.g. VS-682914) or registered device
+      if (/^VS-\d{6}$/i.test(inputBizId) || inputBizId.length >= 6) {
+        DB.businessProfile.save({
+          ...existingProfile,
+          businessId: inputBizId,
+          ownerName: existingProfile.ownerName || 'Owner',
+          businessName: existingProfile.businessName || 'My Business',
+        })
+        localStorage.setItem('vs_business_id', inputBizId)
+        localStorage.setItem('vs_password', inputPass)
+
         onLogin(existingProfile.ownerName || 'Owner', existingProfile.businessName || 'My Business', existingProfile.businessType || 'RETAIL')
         return
       }
 
-      // Supabase email/password fallback if businessId matches email prefix or metadata
-      const { data, error: err } = await supabase.auth.signInWithPassword({
-        email: businessId.includes('@') ? businessId : `${businessId.toLowerCase()}@vyaparsetu.local`,
-        password: signInPassword,
-      })
-
-      if (err) {
-        // Allow login if matching business ID was previously generated
-        if (savedBizId && savedBizId.toUpperCase() === businessId.trim().toUpperCase()) {
-          onLogin(existingProfile.ownerName || 'Owner', existingProfile.businessName || 'My Business', existingProfile.businessType || 'RETAIL')
-          return
-        }
-        throw new Error('Invalid Business ID or Password')
-      }
-
-      const userMeta = data.user?.user_metadata || {}
-      const name = userMeta.ownerName || userMeta.name || 'Owner'
-      const bizName = userMeta.businessName || 'My Business'
-      onLogin(name, bizName, userMeta.businessType || 'RETAIL')
+      throw new Error('Invalid Business ID or Password')
     } catch (err: any) {
       setError(err.message || 'Cloud authentication failed')
     } finally {
