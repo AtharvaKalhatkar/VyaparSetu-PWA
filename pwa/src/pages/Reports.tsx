@@ -211,22 +211,77 @@ export function Reports({ onNavigate }: { onNavigate: (p: string) => void }) {
 
       case 'bill-wise-profit': {
         const itemsMap = new Map(allItems.map(i => [i.id, i]))
-        const rows = sales.filter(i => i.dueAmount === 0).slice(0, 50).map(i => {
+        const rows = sales.map(i => {
           const cost = i.items.reduce((s, li) => {
             const item = itemsMap.get(li.itemId)
             const conv = item?.units?.find(u => u.unitName === li.unit)?.conversionRate || 1
-            const baseQty = li.unit === item?.unit ? li.quantity : li.quantity * conv
-            return s + (item?.purchasePrice || 0) * baseQty
+            const baseQty = li.unit === item?.unit ? li.quantity : (conv > 1 ? li.quantity / conv : li.quantity * conv)
+            const unitCost = item?.purchasePrice || 0
+            return s + unitCost * baseQty
           }, 0)
-          return { inv: i, profit: i.grandTotal - cost, margin: i.grandTotal > 0 ? ((i.grandTotal - cost) / i.grandTotal * 100) : 0 }
-        }).sort((a, b) => b.profit - a.profit)
+          const profit = i.grandTotal - cost
+          const margin = i.grandTotal > 0 ? (profit / i.grandTotal) * 100 : 0
+          return { inv: i, cost, profit, margin }
+        }).sort((a, b) => b.inv.date.localeCompare(a.inv.date))
+
+        const totalSalesAmt = rows.reduce((s, r) => s + r.inv.grandTotal, 0)
+        const totalCostAmt = rows.reduce((s, r) => s + r.cost, 0)
+        const totalProfitAmt = totalSalesAmt - totalCostAmt
+        const avgMargin = totalSalesAmt > 0 ? (totalProfitAmt / totalSalesAmt) * 100 : 0
+
         return (
-          <div>{rows.map(r => (
-            <div key={r.inv.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: `1px solid ${Colors.divider}`, fontSize: 12 }}>
-              <span>{r.inv.invoiceNo} · {r.inv.partyName}</span>
-              <span style={{ color: r.profit >= 0 ? Colors.success : Colors.error, fontWeight: 600 }}>{formatCurrency(r.profit)} ({r.margin.toFixed(1)}%)</span>
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: Spacing.md }}>
+              <KpiCard label="Total Revenue" value={formatCurrency(totalSalesAmt)} color={Colors.primary} icon={<Icons.Money size={16} />} />
+              <KpiCard label="Total Cost" value={formatCurrency(totalCostAmt)} color={Colors.textSecondary} icon={<Icons.Cart size={16} />} />
+              <KpiCard label="Total Net Profit" value={formatCurrency(totalProfitAmt)} color={totalProfitAmt >= 0 ? Colors.success : Colors.error} icon={<Icons.Trending size={16} />} />
             </div>
-          ))}</div>
+
+            <div style={{ fontSize: 13, fontWeight: 700, color: Colors.textPrimary, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Bill-Wise Profit Breakdown ({rows.length} Invoices)</span>
+              <span style={{ fontSize: 11, color: Colors.textSecondary }}>Avg Margin: {avgMargin.toFixed(1)}%</span>
+            </div>
+
+            {rows.length === 0 ? (
+              <div style={{ padding: 20, textAlign: 'center', color: Colors.textSecondary }}>No sales invoices created yet</div>
+            ) : (
+              <div style={{ maxHeight: 420, overflowY: 'auto', border: `1px solid ${Colors.border}`, borderRadius: BorderRadius.md }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ backgroundColor: Colors.surfaceVariant, borderBottom: `1px solid ${Colors.border}`, position: 'sticky', top: 0, zIndex: 2 }}>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700 }}>Inv # / Date</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700 }}>Customer</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>Sale Amt</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>Cost Price</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>Net Profit</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>Margin %</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r, i) => (
+                      <tr key={r.inv.id} style={{ borderBottom: `1px solid ${Colors.divider}`, backgroundColor: i % 2 === 0 ? '#fff' : '#F8FAFC' }}>
+                        <td style={{ padding: '8px 10px', fontWeight: 600 }}>
+                          <span style={{ color: Colors.primary, cursor: 'pointer' }} onClick={() => { setModal(null); onNavigate('invoice-view?id=' + r.inv.id) }}>
+                            {r.inv.invoiceNo}
+                          </span>
+                          <div style={{ fontSize: 10, color: Colors.textSecondary }}>{formatDate(r.inv.date)}</div>
+                        </td>
+                        <td style={{ padding: '8px 10px', color: Colors.textPrimary }}>{r.inv.partyName || 'Cash Customer'}</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>{formatCurrency(r.inv.grandTotal)}</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', color: Colors.textSecondary }}>{formatCurrency(r.cost)}</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: r.profit >= 0 ? Colors.success : Colors.error }}>
+                          {formatCurrency(r.profit)}
+                        </td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: r.margin >= 0 ? Colors.success : Colors.error }}>
+                          {r.margin.toFixed(1)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         )
       }
 
