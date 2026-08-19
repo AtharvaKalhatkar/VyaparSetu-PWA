@@ -5,6 +5,7 @@ import { DB } from '../utils/storage'
 import { formatCurrency, generateId, todayISO } from '../utils/formatting'
 import { Icons } from '../utils/Icons'
 import { createLedgerEntry } from '../utils/invoiceOps'
+import { SuccessCard } from '../utils/smooth'
 
 const MODES = ['CASH', 'UPI', 'BANK', 'CHEQUE', 'CARD']
 
@@ -30,10 +31,31 @@ export function AddPayment({ onBack, onNavigate, invoiceId: propInvId }: { onBac
     const target = accts.find(a => a.type === (mode === 'CASH' ? 'CASH' : 'BANK') && a.name !== 'Demo')
     if (target) DB.bankAccounts.save({ ...target, balance: target.balance + amt })
     setSaved(true)
-    setTimeout(onBack, 1500)
   }
 
-  if (saved) return <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><Icons.Check size={48} color={Colors.success} /><div style={{ fontSize: 20, fontWeight: 700, color: Colors.success, marginTop: Spacing.md }}>Payment Recorded!</div></div>
+  if (saved) {
+    return (
+      <SuccessCard
+        title="Payment Received Successfully!"
+        subtitle={`Recorded ₹${amountStr || inv?.dueAmount || 0} payment from ${inv?.partyName || 'Customer'}.`}
+        details={[
+          { label: 'Invoice No', value: inv?.invoiceNo || 'N/A' },
+          { label: 'Customer', value: inv?.partyName || 'N/A' },
+          { label: 'Payment Mode', value: mode },
+          { label: 'Amount Received', value: `₹${amountStr || inv?.dueAmount || 0}` },
+        ]}
+        primaryAction={{
+          label: 'View Invoices',
+          onClick: () => onNavigate ? onNavigate('invoices') : onBack(),
+          icon: <Icons.Invoice size={16} color="#fff" />,
+        }}
+        secondaryAction={{
+          label: 'Done',
+          onClick: onBack,
+        }}
+      />
+    )
+  }
 
   return (
     <div style={{ padding: Spacing.lg, paddingBottom: 80 }}>

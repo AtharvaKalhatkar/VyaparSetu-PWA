@@ -8,6 +8,8 @@ import { createLedgerEntry } from '../utils/invoiceOps'
 
 const MODES = ['CASH', 'UPI', 'BANK', 'CHEQUE', 'CARD']
 
+import { SuccessCard } from '../utils/smooth'
+
 export function AddPaymentOut({ onBack, onNavigate, invoiceId: propInvId }: { onBack: () => void; onNavigate?: (p: string) => void; invoiceId?: string }) {
   const [invId, setInvId] = useState(propInvId || '')
   const [amountStr, setAmountStr] = useState('')
@@ -33,10 +35,31 @@ export function AddPaymentOut({ onBack, onNavigate, invoiceId: propInvId }: { on
     const target = accts.find(a => a.type === (mode === 'CASH' ? 'CASH' : 'BANK') && a.name !== 'Demo') || accts[0]
     if (target) DB.bankAccounts.save({ ...target, balance: target.balance - amt })
     setSaved(true)
-    setTimeout(onBack, 1500)
   }
 
-  if (saved) return <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><Icons.Check size={48} color={Colors.success} /><div style={{ fontSize: 20, fontWeight: 700, color: Colors.success, marginTop: Spacing.md }}>Payment Recorded!</div></div>
+  if (saved) {
+    return (
+      <SuccessCard
+        title="Payment Made to Supplier!"
+        subtitle={`Paid ₹${amountStr || dueAmt} to ${inv?.partyName || 'Supplier'} for Bill #${inv?.invoiceNo}.`}
+        details={[
+          { label: 'Purchase Bill', value: inv?.invoiceNo || 'N/A' },
+          { label: 'Supplier', value: inv?.partyName || 'N/A' },
+          { label: 'Payment Mode', value: mode },
+          { label: 'Amount Paid', value: `₹${amountStr || dueAmt}` },
+        ]}
+        primaryAction={{
+          label: 'View Purchases',
+          onClick: () => onNavigate ? onNavigate('invoices') : onBack(),
+          icon: <Icons.Truck size={16} color="#fff" />,
+        }}
+        secondaryAction={{
+          label: 'Done',
+          onClick: onBack,
+        }}
+      />
+    )
+  }
 
   return (
     <div style={{ padding: Spacing.lg, paddingBottom: 80 }}>

@@ -6,6 +6,7 @@ import { generateId } from '../utils/formatting'
 import { Icons } from '../utils/Icons'
 import { useVertical } from '../context/VerticalContext'
 import { suggestHsnAndGst } from '../utils/ai'
+import { SuccessCard } from '../utils/smooth'
 
 const allSteps = (gst: boolean) => gst ? ['Basic Info', 'Pricing', 'Stock', 'Tax', 'Review'] : ['Basic Info', 'Pricing', 'Stock', 'Review']
 
@@ -91,18 +92,30 @@ export function AddItem({ editId, onBack, onNavigate, onAddUnit }: { editId?: st
       imageUrl: itemImage || undefined,
     })
     setSaved(true)
-    setTimeout(onBack, 1500)
   }
 
   if (saved) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '70vh', padding: Spacing.xxl }}>
-        <div style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.successLight, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xl }}>
-          <Icons.Check size={40} color={Colors.success} />
-        </div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: Colors.textPrimary, marginBottom: Spacing.sm }}>Item Added Successfully</div>
-        <div style={{ fontSize: 14, color: Colors.textSecondary, textAlign: 'center' }}>{name} has been added to your inventory</div>
-      </div>
+      <SuccessCard
+        title={editId ? 'Item Updated Successfully!' : 'Item Added Successfully!'}
+        subtitle={`${name} is now stored in your inventory catalog.`}
+        details={[
+          { label: 'Item Name', value: name },
+          { label: 'Primary Unit', value: unit },
+          { label: 'Selling Price', value: sellingPrice ? `₹${sellingPrice}` : 'N/A' },
+          { label: 'Current Stock', value: `${currentStock || '0'} ${unit}` },
+        ]}
+        primaryAction={{
+          label: 'View Inventory',
+          onClick: () => onNavigate ? onNavigate('inventory') : onBack(),
+          icon: <Icons.Inventory size={16} color="#fff" />,
+        }}
+        secondaryAction={{
+          label: '+ Add Another Item',
+          onClick: () => { setSaved(false); setStep(0); setName(''); setSku(''); setBarcode(''); setCurrentStock('0'); setSellingPrice(''); setPurchasePrice('') },
+          icon: <Icons.Add size={16} color="#334155" />,
+        }}
+      />
     )
   }
 

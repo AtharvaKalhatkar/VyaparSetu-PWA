@@ -6,6 +6,8 @@ import { generateId } from '../utils/formatting'
 import { Icons } from '../utils/Icons'
 import { useVertical, t } from '../context/VerticalContext'
 
+import { SuccessCard } from '../utils/smooth'
+
 export function AddParty({ editId, onBack, onNavigate }: { editId?: string; onBack: () => void; onNavigate?: (p: string) => void }) {
   const config = useVertical()
   const existing = editId ? DB.parties.byId(editId) : null
@@ -29,14 +31,37 @@ export function AddParty({ editId, onBack, onNavigate }: { editId?: string; onBa
       createdAt: existing?.createdAt || new Date().toISOString().split('T')[0],
     })
     setSaved(true)
-    setTimeout(onBack, 800)
   }
 
   const handleDelete = () => {
     if (editId && confirm('Delete this party?')) { DB.parties.delete(editId); onBack() }
   }
 
-  if (saved) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', fontSize: 20, fontWeight: 700, color: Colors.success }}>✅ {editId ? 'Updated!' : 'Added!'}</div>
+  if (saved) {
+    const partyLabel = type === 'SUPPLIER' ? 'Supplier' : type === 'BOTH' ? 'Customer & Supplier' : 'Customer'
+    return (
+      <SuccessCard
+        title={editId ? `${partyLabel} Updated!` : `${partyLabel} Added Successfully!`}
+        subtitle={`${name} has been added to your business contacts.`}
+        details={[
+          { label: 'Name', value: name },
+          { label: 'Type', value: partyLabel },
+          { label: 'Phone', value: phone || 'N/A' },
+          { label: 'GSTIN', value: gstin || 'Unregistered' },
+        ]}
+        primaryAction={{
+          label: `View ${type === 'SUPPLIER' ? 'Suppliers' : 'Customers'}`,
+          onClick: () => onNavigate ? onNavigate(type === 'SUPPLIER' ? 'suppliers' : 'customers') : onBack(),
+          icon: <Icons.People size={16} color="#fff" />,
+        }}
+        secondaryAction={{
+          label: '+ Add Another Party',
+          onClick: () => { setSaved(false); setName(''); setPhone(''); setAddress(''); setGstin('') },
+          icon: <Icons.Add size={16} color="#334155" />,
+        }}
+      />
+    )
+  }
 
   return (
     <div style={{ padding: Spacing.lg, paddingBottom: 80 }}>

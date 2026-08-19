@@ -2,9 +2,9 @@ import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { Colors, Spacing, BorderRadius, Shadows } from '../theme'
 import { s, Field } from '../utils/styles'
 import { DB } from '../utils/storage'
-import { formatCurrency, generateId, todayISO, nextInvoiceNo } from '../utils/formatting'
+import { formatCurrency, formatDate, generateId, todayISO, nextInvoiceNo } from '../utils/formatting'
 import { Icons } from '../utils/Icons'
-import { SelectSheet, useToast } from '../utils/smooth'
+import { SelectSheet, useToast, SuccessCard } from '../utils/smooth'
 import { useVertical } from '../context/VerticalContext'
 import { useAuth } from '../store/auth'
 import { applyStockChanges, createLedgerEntry } from '../utils/invoiceOps'
@@ -223,37 +223,29 @@ export function Billing({ editId, initialType, onBack, onNavigate }: { editId?: 
       setLastSavedInv(null)
     }
 
+    const isPur = lastSavedInv.docType === 'PURCHASE' || lastSavedInv.type === 'PURCHASE'
+
     return (
-      <div style={{ padding: Spacing.xl, textAlign: 'center', maxWidth: 460, margin: '40px auto 80px', backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
-        <div style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: Colors.successLight, color: Colors.success, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-          <Icons.Check size={36} />
-        </div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: Colors.textPrimary, marginBottom: 4 }}>
-          {existing ? 'Invoice Updated!' : 'Invoice Created Successfully!'}
-        </div>
-        <div style={{ fontSize: 14, color: Colors.textSecondary, marginBottom: 20 }}>
-          Invoice <strong>#{lastSavedInv.invoiceNo}</strong> • {lastSavedInv.partyName} • <strong style={{ color: Colors.primary }}>{formatCurrency(lastSavedInv.grandTotal)}</strong>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <button onClick={() => onNavigate?.('invoice-view?id=' + lastSavedInv.id)} style={{ ...s.primaryBtn, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px' }}>
-            <Icons.Invoice size={18} /> View & Print Invoice
-          </button>
-          
-          <button onClick={shareWhatsApp} style={{ backgroundColor: '#25D366', color: '#fff', border: 'none', borderRadius: BorderRadius.sm, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <Icons.WhatsApp size={18} /> Share on WhatsApp
-          </button>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8 }}>
-            <button onClick={resetFormForNext} style={{ backgroundColor: Colors.surfaceVariant, border: `1px solid ${Colors.border}`, color: Colors.textPrimary, borderRadius: BorderRadius.sm, padding: '12px', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <Icons.Add size={16} /> Create Another
-            </button>
-            <button onClick={() => onNavigate ? onNavigate('dashboard') : resetFormForNext()} style={{ backgroundColor: Colors.primaryLight, border: `1px solid ${Colors.primary}30`, color: Colors.primary, borderRadius: BorderRadius.sm, padding: '12px', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <Icons.Home size={16} /> Go to Home
-            </button>
-          </div>
-        </div>
-      </div>
+      <SuccessCard
+        title={existing ? (isPur ? 'Purchase Bill Updated!' : 'Invoice Updated!') : (isPur ? 'Purchase Bill Recorded!' : 'Invoice Created Successfully!')}
+        subtitle={`${isPur ? 'Purchase Bill' : 'Invoice'} #${lastSavedInv.invoiceNo} has been saved.`}
+        details={[
+          { label: isPur ? 'Bill Number' : 'Invoice Number', value: `#${lastSavedInv.invoiceNo}` },
+          { label: isPur ? 'Supplier' : 'Customer', value: lastSavedInv.partyName || 'Cash' },
+          { label: 'Bill Date', value: formatDate(lastSavedInv.date) },
+          { label: 'Grand Total', value: formatCurrency(lastSavedInv.grandTotal) },
+        ]}
+        primaryAction={{
+          label: 'View & Print',
+          onClick: () => onNavigate?.('invoice-view?id=' + lastSavedInv.id),
+          icon: <Icons.Invoice size={16} color="#fff" />,
+        }}
+        secondaryAction={{
+          label: 'Share WhatsApp',
+          onClick: shareWhatsApp,
+          icon: <Icons.WhatsApp size={16} color="#25D366" />,
+        }}
+      />
     )
   }
 
