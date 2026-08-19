@@ -323,6 +323,7 @@ function StandardTemplate({ inv, settings, profile }: { inv: Invoice; settings: 
   const c = TC(settings.themeColor)
   const party = DB.parties.byId(inv.partyId)
   const partyAddress = inv.shippingAddress || party?.address
+  const isPurchase = inv.type === 'PURCHASE' || inv.docType === 'PURCHASE'
   const gstRates = [...new Set(inv.items.map(i => i.gstRate).filter(r => r > 0))].sort()
 
   return (
@@ -345,12 +346,12 @@ function StandardTemplate({ inv, settings, profile }: { inv: Invoice; settings: 
 
         <div style={{ textAlign: 'right', minWidth: 210 }}>
           <div style={{
-            fontSize: 12, color: '#fff', backgroundColor: c, textTransform: 'uppercase',
+            fontSize: 12, color: '#fff', backgroundColor: isPurchase ? Colors.warning : c, textTransform: 'uppercase',
             letterSpacing: 1.5, fontWeight: 800, display: 'inline-block',
             padding: '6px 16px', borderRadius: 4, marginBottom: 8,
             boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
           }}>
-            {settings.enableGst ? 'Tax Invoice' : 'Invoice'}
+            {isPurchase ? 'PURCHASE BILL' : settings.enableGst ? 'Tax Invoice' : 'Invoice'}
           </div>
           <div style={{ fontSize: 16, fontWeight: 800, color: c, letterSpacing: 0.5 }}>#{inv.invoiceNo}</div>
           <div style={{ fontSize: 11, color: '#475569', marginTop: 4 }}>Date: <strong>{formatDate(inv.date)}</strong></div>
@@ -370,7 +371,9 @@ function StandardTemplate({ inv, settings, profile }: { inv: Invoice; settings: 
       {/* Bill To & Details Container */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, padding: '12px 14px', backgroundColor: '#F8FAFC', borderRadius: 6, border: '1px solid #E2E8F0' }}>
         <div style={{ fontSize: 13, flex: 1 }}>
-          <div style={{ fontSize: 10, color: '#64748B', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 2 }}>Bill To (Customer)</div>
+          <div style={{ fontSize: 10, color: '#64748B', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 2 }}>
+            {isPurchase ? 'Supplier / Vendor Details' : 'Bill To (Customer)'}
+          </div>
           <span style={{ fontWeight: 800, fontSize: 15, color: '#1E293B' }}>{inv.partyName}</span>
           {partyAddress && <div style={{ fontSize: 11, color: '#475569', marginTop: 3, whiteSpace: 'pre-line' }}>📍 {partyAddress}</div>}
           {party?.phone && <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>📞 {party.phone}</div>}
@@ -865,13 +868,17 @@ function CorporateTemplate({ inv, settings, profile }: { inv: Invoice; settings:
 function DottedTemplate({ inv, settings, profile }: { inv: Invoice; settings: any; profile: any }) {
   const dotBorder = '1.5px dashed #333'
   const lightDotBorder = '1px dotted #888'
+  const isPurchase = inv.type === 'PURCHASE' || inv.docType === 'PURCHASE'
 
   return (
     <div style={{ padding: '16px', border: '2px dashed #222', borderRadius: '4px', backgroundColor: '#fff', color: '#111', fontFamily: "'Courier New', Courier, monospace, sans-serif" }}>
       {/* Header Banner */}
       <div style={{ textAlign: 'center', paddingBottom: '12px', borderBottom: dotBorder }}>
+        <div style={{ fontSize: '11px', fontWeight: '900', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '4px', color: isPurchase ? '#D97706' : '#2563EB' }}>
+          {isPurchase ? '*** PURCHASE BILL / INWARD BILL ***' : '*** TAX INVOICE ***'}
+        </div>
         <div style={{ fontSize: '20px', fontWeight: '900', letterSpacing: '1px', textTransform: 'uppercase' }}>
-          {profile.businessName || 'TAX INVOICE'}
+          {profile.businessName || 'Your Business'}
         </div>
         {profile.ownerName && <div style={{ fontSize: '11px', marginTop: '2px' }}>Prop: {profile.ownerName}</div>}
         {profile.address && <div style={{ fontSize: '11px', color: '#444', marginTop: '2px', whiteSpace: 'pre-line' }}>{profile.address}</div>}
@@ -881,15 +888,17 @@ function DottedTemplate({ inv, settings, profile }: { inv: Invoice; settings: an
         </div>
       </div>
 
-      {/* Invoice Meta & Customer Row */}
+      {/* Invoice Meta & Customer / Supplier Row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: dotBorder, fontSize: '12px', flexWrap: 'wrap', gap: '10px' }}>
         <div>
-          <div style={{ fontSize: '10px', textTransform: 'uppercase', color: '#666', letterSpacing: '0.5px' }}>Billed To:</div>
-          <div style={{ fontSize: '14px', fontWeight: '800' }}>{inv.partyName || 'Cash Customer'}</div>
+          <div style={{ fontSize: '10px', textTransform: 'uppercase', color: '#666', letterSpacing: '0.5px' }}>
+            {isPurchase ? 'Supplier / Vendor Details:' : 'Billed To:'}
+          </div>
+          <div style={{ fontSize: '14px', fontWeight: '800' }}>{inv.partyName || (isPurchase ? 'Supplier' : 'Cash Customer')}</div>
           {inv.shippingAddress && <div style={{ fontSize: '11px', color: '#555', marginTop: '2px' }}>{inv.shippingAddress}</div>}
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div><strong>INVOICE NO:</strong> {settings.prefix}-{inv.invoiceNo.replace(/^[A-Z]+-/, '')}</div>
+          <div><strong>{isPurchase ? 'BILL NO:' : 'INVOICE NO:'}</strong> {settings.prefix}-{inv.invoiceNo.replace(/^[A-Z]+-/, '')}</div>
           <div><strong>DATE:</strong> {formatDate(inv.date)}</div>
           {inv.dueDate && <div><strong>DUE DATE:</strong> {formatDate(inv.dueDate)}</div>}
         </div>
