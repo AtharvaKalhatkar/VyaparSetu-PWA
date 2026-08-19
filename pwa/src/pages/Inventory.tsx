@@ -31,6 +31,19 @@ export function Inventory({ onNavigate }: { onNavigate: (p: string) => void }) {
 
   return (
     <div style={{ padding: Spacing.lg, paddingBottom: 80 }}>
+      <div style={{ display: 'flex', gap: Spacing.xs, marginBottom: Spacing.md }}>
+        <button onClick={() => onNavigate('add-item')} style={{ ...s.primaryBtn, flex: 1, padding: '8px 12px', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <Icons.Add size={16} /> Add Item
+        </button>
+        <button onClick={() => onNavigate('stock-adjustment')} style={{
+          flex: 1, padding: '8px 12px', borderRadius: 8, border: `1px solid ${Colors.primary}`,
+          backgroundColor: Colors.primaryLight, color: Colors.primary, fontWeight: 700, fontSize: 13,
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+        }}>
+          <Icons.Transfer size={16} /> Stock Adjustment
+        </button>
+      </div>
+
       <div style={{ display: 'flex', gap: Spacing.sm, marginBottom: Spacing.md }}>
         <div style={{ position: 'relative', flex: 1 }}>
           <span style={{ position: 'absolute', left: 12, top: 10, display: 'flex', alignItems: 'center', color: Colors.textDisabled }}><Icons.Search size={16} /></span>

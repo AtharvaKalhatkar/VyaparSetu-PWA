@@ -4,10 +4,12 @@ import { s, Field } from '../utils/styles'
 import { DB } from '../utils/storage'
 import { generateId, todayISO } from '../utils/formatting'
 import { toBaseQty } from '../utils/invoiceOps'
+import { useToast } from '../utils/smooth'
 import { Icons } from '../utils/Icons'
 import type { StockAdjustment as SA } from '../types'
 
 export function StockAdjustment() {
+  const { toast } = useToast()
   const [, setTick] = useState(0)
   const allItems = DB.items.list().filter(i => i.isActive)
   const adjustments = DB.stockAdjustments.list().sort((a, b) => b.date.localeCompare(a.date))
@@ -24,21 +26,26 @@ export function StockAdjustment() {
     if (!itemId || !qty || !reason) return
     const item = allItems.find(i => i.id === itemId)
     if (!item) return
-    const q = parseInt(qty) || 0
+    const q = parseFloat(qty) || 0
     if (q <= 0) return
     const adj: SA = {
       id: generateId(), itemId, itemName: item.name,
       type, quantity: q, reason, date, notes,
     }
+    DB.stockAdjustments.save(adj)
     const baseAdjQty = toBaseQty(item, q, item.unit)
     const current = typeof item.currentStock === 'number' && !isNaN(item.currentStock) ? item.currentStock : 0
     if (type === 'ADD') item.currentStock = current + baseAdjQty
     else item.currentStock = Math.max(0, current - baseAdjQty)
     DB.items.save(item)
+    DB.auditLogs.save({ id: generateId(), entity: 'ITEM', entityId: item.id, action: 'STOCK_ADJUST', user: 'Admin', timestamp: new Date().toISOString(), description: `Stock adjustment: ${type} ${q} ${item.unit} (${reason})` })
+    toast(`Stock adjustment saved! New stock: ${item.currentStock} ${item.unit}`, 'success')
     setReason('')
     setNotes('')
+    setItemId('')
     setDate(todayISO())
     setQty('1')
+    setTick(t => t + 1)
   }
 
   return (

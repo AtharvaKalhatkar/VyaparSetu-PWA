@@ -67,7 +67,7 @@ export const AGENCY: VerticalConfig = {
   enableGst: false,
   terms: { party: 'Client', invoice: 'Invoice', item: 'Service', ledgerEntry: 'Transaction' },
   defaultCategories: ['Service', 'Consultation', 'Maintenance', 'Subscription', 'Commission'], defaultGstRate: 18,
-  enabledModules: defaultConfig.enabledModules.filter(m => m !== 'stock-adjustment' && m !== 'gst-reports' && m !== 'units'),
+  enabledModules: defaultConfig.enabledModules.filter(m => m !== 'gst-reports' && m !== 'units'),
 }
 
 export const RESTAURANT: VerticalConfig = {
@@ -77,7 +77,7 @@ export const RESTAURANT: VerticalConfig = {
   enableGst: false,
   terms: { party: 'Guest', invoice: 'Bill', item: 'Item' },
   defaultCategories: ['Starters', 'Main Course', 'Beverages', 'Desserts', 'Chinese', 'South Indian', 'Punjabi'], defaultGstRate: 5,
-  enabledModules: defaultConfig.enabledModules.filter(m => m !== 'stock-adjustment' && m !== 'gst-reports'),
+  enabledModules: defaultConfig.enabledModules.filter(m => m !== 'gst-reports'),
 }
 
 export const SALON: VerticalConfig = {
@@ -87,7 +87,7 @@ export const SALON: VerticalConfig = {
   enableGst: false,
   terms: { party: 'Client', invoice: 'Bill', item: 'Service' },
   defaultCategories: ['Hair Cut', 'Facial', 'Manicure', 'Pedicure', 'Coloring', 'Styling', 'Massage'], defaultGstRate: 18,
-  enabledModules: defaultConfig.enabledModules.filter(m => m !== 'stock-adjustment' && m !== 'gst-reports'),
+  enabledModules: defaultConfig.enabledModules.filter(m => m !== 'gst-reports'),
 }
 
 export const TAILOR: VerticalConfig = {
