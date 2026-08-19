@@ -84,10 +84,18 @@ function setDarkMode(v: boolean) {
 
 const TAB_PAGES = ['dashboard', 'ledger', 'billing', 'inventory']
 
+type NavStackItem = { route: string; params: Record<string, string> }
+
+function parseQueryParams(qs?: string): Record<string, string> {
+  const pms: Record<string, string> = {}
+  if (qs) qs.split('&').forEach(part => { const [k, v] = part.split('='); pms[k] = decodeURIComponent(v || '') })
+  return pms
+}
+
 export default function App() {
   const { loggedIn, userName, login, logout } = useAuth()
   const [page, setPage] = useState('dashboard')
-  const [history, setHistory] = useState<string[]>([])
+  const [navStack, setNavStack] = useState<NavStackItem[]>([])
   const [params, setParams] = useState<Record<string, string>>({})
   const [navDir, setNavDir] = useState<'forward' | 'back'>('forward')
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -103,7 +111,7 @@ export default function App() {
   const shortcuts = [
     { key: 'n', ctrl: true, label: 'New Invoice', action: () => navigate('billing') },
     { key: '/', ctrl: true, label: 'Search', action: () => { const s = document.querySelector<HTMLInputElement>('input[placeholder*="Search"]'); if (s) s.focus() } },
-    { key: 'Escape', label: 'Go Back', action: () => { if (history.length > 0) goBack() } },
+    { key: 'Escape', label: 'Go Back', action: () => { goBack() } },
     { key: 'd', ctrl: true, label: 'Dashboard', action: () => navigate('dashboard') },
     { key: 'i', ctrl: true, label: 'Inventory', action: () => navigate('inventory') },
     { key: 'l', ctrl: true, label: 'Ledger', action: () => navigate('ledger') },
@@ -114,34 +122,61 @@ export default function App() {
 
   const navigate = (p: string) => {
     const [route, qs] = p.split('?')
-    if (page !== route && (!TAB_PAGES.includes(page) || !TAB_PAGES.includes(route))) {
-      setHistory(prev => [...prev, page])
+    const nextParams = parseQueryParams(qs)
+    
+    // If navigating to dashboard directly, clear history stack
+    if (route === 'dashboard') {
+      setNavStack([])
+      setPage('dashboard')
+      setParams({})
+      setNavDir('forward')
+      pageKey.current++
+      return
     }
-    const pms: Record<string, string> = {}
-    if (qs) qs.split('&').forEach(part => { const [k, v] = part.split('='); pms[k] = decodeURIComponent(v || '') })
-    setParams(pms)
+
+    // Push previous screen to stack if different
+    if (page !== route || JSON.stringify(params) !== JSON.stringify(nextParams)) {
+      setNavStack(prev => [...prev, { route: page, params }])
+    }
+
+    setParams(nextParams)
     setPage(route)
     setNavDir('forward')
     pageKey.current++
   }
 
   const goBack = () => {
-    if (history.length === 0) {
-      setPage('dashboard')
-      setParams({})
+    if (navStack.length === 0) {
+      if (page !== 'dashboard') {
+        setPage('dashboard')
+        setParams({})
+        setNavDir('back')
+        pageKey.current++
+      }
       return
     }
-    const newHist = [...history]
-    const prev = newHist.pop() || 'dashboard'
-    setHistory(newHist)
-    setPage(prev)
-    setParams({})
+    const newStack = [...navStack]
+    const lastScreen = newStack.pop() || { route: 'dashboard', params: {} }
+    setNavStack(newStack)
+    setPage(lastScreen.route)
+    setParams(lastScreen.params)
     setNavDir('back')
     pageKey.current++
   }
 
-  const isTab = TAB_PAGES.includes(page)
-  const showBack = history.length > 0 && !isTab
+  React.useEffect(() => {
+    try {
+      window.history.pushState({ page, params }, '', window.location.href)
+    } catch { /* ignore */ }
+    const handlePopState = (e: PopStateEvent) => {
+      e.preventDefault()
+      goBack()
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [page, params, navStack])
+
+  const showBack = navStack.length > 0 || page !== 'dashboard'
   const title = PAGE_TITLES[page] || 'Vyapar Setu'
 
   const renderPage = () => {
