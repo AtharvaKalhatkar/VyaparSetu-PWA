@@ -95,7 +95,12 @@ export function InvoicesPage({ onNavigate }: { onNavigate: (p: string) => void }
   }, [onNavigate])
 
   const handlePay = useCallback((invId: string) => {
-    onNavigate('add-payment?id=' + invId)
+    const targetInv = DB.invoices.byId(invId)
+    if (targetInv && (targetInv.docType === 'PURCHASE' || targetInv.type === 'PURCHASE')) {
+      onNavigate('add-payment-out?id=' + invId)
+    } else {
+      onNavigate('add-payment?id=' + invId)
+    }
   }, [onNavigate])
 
   const handleReturn = useCallback((invId: string) => {

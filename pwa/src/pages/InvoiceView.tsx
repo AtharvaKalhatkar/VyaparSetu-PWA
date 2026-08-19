@@ -109,6 +109,14 @@ export function InvoiceView({ invoiceId, onNavigate, autoPrint }: { invoiceId: s
             <option value="DOTTED">Dotted / Dot-Matrix</option>
           </select>
         </div>
+        {onNavigate && (
+          <button
+            onClick={() => onNavigate((inv?.type === 'PURCHASE' || inv?.docType === 'PURCHASE') ? ('add-payment-out?id=' + invoiceId) : ('add-payment?id=' + invoiceId))}
+            style={{ ...s.primaryBtn, width: 'auto', padding: '10px 18px', display: 'inline-flex', alignItems: 'center', gap: Spacing.sm, backgroundColor: (inv?.type === 'PURCHASE' || inv?.docType === 'PURCHASE') ? Colors.warning : Colors.success }}
+          >
+            <Icons.Payment size={16} /> {(inv?.type === 'PURCHASE' || inv?.docType === 'PURCHASE') ? 'Pay Out (Supplier)' : 'Record Payment'}
+          </button>
+        )}
         {onNavigate && <button onClick={() => onNavigate('returns?sourceId=' + invoiceId)} style={{ ...s.primaryBtn, width: 'auto', padding: '10px 20px', display: 'inline-flex', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.error }}><Icons.Refresh size={16} /> Return</button>}
       </div>
 

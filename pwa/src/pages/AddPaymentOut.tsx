@@ -14,20 +14,23 @@ export function AddPaymentOut({ onBack, onNavigate, invoiceId: propInvId }: { on
   const [mode, setMode] = useState('CASH')
   const [saved, setSaved] = useState(false)
 
-  const invoices = DB.invoices.list().filter(i => (i.docType === 'PURCHASE' || i.type === 'PURCHASE') && i.dueAmount > 0)
-  const inv = invoices.find(i => i.id === invId)
+  const invoices = DB.invoices.list().filter(i => (i.docType === 'PURCHASE' || i.type === 'PURCHASE'))
+  const inv = invId ? (DB.invoices.byId(invId) || invoices.find(i => i.id === invId)) : undefined
+  const dueAmt = inv ? (inv.dueAmount != null ? inv.dueAmount : Math.max(0, inv.grandTotal - (inv.paidAmount || 0))) : 0
 
   const handleSave = () => {
-    const amt = Math.min(parseFloat(amountStr) || 0, inv?.dueAmount || 0)
-    if (!inv || !amt) return
-    const newPaid = inv.paidAmount + amt
+    const inputAmt = parseFloat(amountStr) || 0
+    const amt = inputAmt > 0 ? Math.min(inputAmt, dueAmt || inputAmt) : dueAmt
+    if (!inv || amt <= 0) return
+    const currentPaid = inv.paidAmount || 0
+    const newPaid = currentPaid + amt
     const newDue = Math.max(0, inv.grandTotal - newPaid)
     const isOverdue = inv.dueDate ? inv.dueDate < todayISO() : false
     const status = newDue <= 0 ? 'PAID' : isOverdue ? 'OVERDUE' : 'PARTIAL'
     DB.invoices.save({ ...inv, paidAmount: newPaid, dueAmount: newDue, paymentStatus: status })
-    createLedgerEntry(inv.partyId, inv.partyName, 'PAYMENT', amt, mode, inv.invoiceNo, `Payment made for ${inv.invoiceNo}`, todayISO())
+    createLedgerEntry(inv.partyId, inv.partyName, 'PAYMENT', amt, mode, inv.invoiceNo, `Payment made for Purchase Bill #${inv.invoiceNo}`, todayISO())
     const accts = DB.bankAccounts.list()
-    const target = accts.find(a => a.type === (mode === 'CASH' ? 'CASH' : 'BANK') && a.name !== 'Demo')
+    const target = accts.find(a => a.type === (mode === 'CASH' ? 'CASH' : 'BANK') && a.name !== 'Demo') || accts[0]
     if (target) DB.bankAccounts.save({ ...target, balance: target.balance - amt })
     setSaved(true)
     setTimeout(onBack, 1500)
