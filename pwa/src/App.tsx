@@ -64,6 +64,7 @@ import { DebitCreditNotes } from './pages/DebitCreditNotes'
 import { EWayBillPage } from './pages/EWayBill'
 import { BankReconciliation } from './pages/BankReconciliation'
 import { CollectionsPage } from './pages/CollectionsPage'
+import { VideoTeaser } from './pages/VideoTeaser'
 import { VerticalProvider } from './context/VerticalContext'
 import { CompanySwitcher } from './utils/CompanySwitcher'
 import { migrateLegacyData, ensureCompany, byCompanyId, getActiveCompanyId } from './utils/company'
@@ -209,6 +210,7 @@ export default function App() {
       case 'business-profile': return <BusinessProfile onBack={goBack} onNavigate={navigate} />
       case 'smart-purchase': return <SmartPurchase />
       case 'collections': return <CollectionsPage onNavigate={navigate} />
+      case 'video-teaser': return <VideoTeaser onBack={goBack} />
       case 'orders': return <OrdersPage onNavigate={navigate} />
       case 'estimates': return <EstimatesPage onNavigate={navigate} />
       case 'returns': return <ReturnsPage onNavigate={navigate} sourceId={params.sourceId || ''} />
