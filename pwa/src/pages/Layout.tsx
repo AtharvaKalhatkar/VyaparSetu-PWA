@@ -38,7 +38,6 @@ export const PAGE_TITLES: Record<string, string> = {
   'bank-reconciliation': 'Bank Statement Auto-Reconciliation',
   collections: 'Payment Collections',
   companies: 'Manage Companies',
-  'video-teaser': 'SaaS Video Kit',
 }
 
 const TAB_ITEMS = [
@@ -91,7 +90,6 @@ const MENU_SECTIONS = [
   },
   {
     label: 'More Tools', items: [
-      { key: 'video-teaser', label: 'Marketing Video Kit 🎬', icon: Icons.Document, color: '#7C3AED' },
       { key: 'pos-billing', label: 'POS Billing', icon: Icons.Billing, color: Colors.success },
       { key: 'smart-purchase', label: 'Smart Purchase (OCR)', icon: Icons.Barcode, color: Colors.primary },
       { key: 'crm', label: 'CRM', icon: Icons.Star, color: '#EC4899' },

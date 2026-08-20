@@ -204,31 +204,6 @@ export function Dashboard({ userName, onNavigate }: { userName: string; onNaviga
         </div>
       )}
 
-      {/* SaaS Marketing Video Banner */}
-      <div style={{ padding: '0 16px 12px' }}>
-        <div
-          onClick={() => onNavigate('video-teaser')}
-          style={{
-            backgroundColor: '#F3E8FF', border: '1.5px solid #7C3AED', borderRadius: BorderRadius.md, padding: Spacing.md,
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(124, 58, 237, 0.12)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: '#fff' }}>
-              🎬
-            </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#6D28D9' }}>Official SaaS Marketing Video Kit</div>
-              <div style={{ fontSize: 11, color: '#4C1D95', marginTop: 2 }}>60-sec video screenplay & 1080p presenter</div>
-            </div>
-          </div>
-          <button style={{ padding: '6px 12px', backgroundColor: '#7C3AED', color: '#fff', border: 'none', borderRadius: BorderRadius.sm, fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
-            Watch Kit ▶
-          </button>
-        </div>
-      </div>
-
       {/* Monthly Summary */}
       <div style={{ padding: '4px 16px 0' }}>
         <div style={{
