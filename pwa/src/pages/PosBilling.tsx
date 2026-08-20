@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react'
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { Colors, Spacing, BorderRadius } from '../theme'
 import { s, Field } from '../utils/styles'
 import { DB } from '../utils/storage'
@@ -40,10 +40,12 @@ export function PosBilling({ onBack }: { onBack?: () => void }) {
   const searchRef = useRef<HTMLInputElement>(null)
   const barcodeRef = useRef<HTMLInputElement>(null)
 
-  const allItems = DB.items.list().filter(i => i.isActive)
-  const parties = DB.parties.list().filter(p => p.type === 'CUSTOMER' || p.type === 'BOTH')
-  const party = parties.find(p => p.id === partyId)
-  const settings = DB.settings.get()
+  // Memoize static data fetches to avoid re-parsing localStorage on every single keypress
+  const allItems = useMemo(() => DB.items.list().filter(i => i.isActive), [saved])
+  const parties = useMemo(() => DB.parties.list().filter(p => p.type === 'CUSTOMER' || p.type === 'BOTH'), [saved])
+  const itemsMap = useMemo(() => new Map(allItems.map(i => [i.id, i])), [allItems])
+  const party = useMemo(() => parties.find(p => p.id === partyId), [parties, partyId])
+  const settings = useMemo(() => DB.settings.get(), [])
 
   const { subtotal, tax, grandTotal } = useMemo(() => {
     const sub = items.reduce((s, i) => s + i.qty * i.rate, 0)
@@ -57,13 +59,13 @@ export function PosBilling({ onBack }: { onBack?: () => void }) {
   }, [cashReceived, grandTotal])
 
   const filteredItems = useMemo(() => {
-    if (!search) return allItems.slice(0, 20)
-    const q = search.toLowerCase()
+    if (!search.trim()) return allItems.slice(0, 25)
+    const q = search.toLowerCase().trim()
     return allItems.filter(i =>
       i.name.toLowerCase().includes(q) ||
-      i.sku.toLowerCase().includes(q) ||
-      (i.barcode && i.barcode.includes(q))
-    ).slice(0, 20)
+      (i.sku && i.sku.toLowerCase().includes(q)) ||
+      (i.barcode && i.barcode.toLowerCase().includes(q))
+    ).slice(0, 25)
   }, [search, allItems])
 
   useEffect(() => {
@@ -71,13 +73,13 @@ export function PosBilling({ onBack }: { onBack?: () => void }) {
   }, [showItems])
 
   // Fast Barcode Auto-Scan Addition
-  const handleBarcodeSubmit = (e: React.FormEvent) => {
+  const handleBarcodeSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault()
     if (!barcodeInput.trim()) return
     const code = barcodeInput.trim().toLowerCase()
     const matchedItem = allItems.find(i =>
       (i.barcode && i.barcode.toLowerCase() === code) ||
-      i.sku.toLowerCase() === code ||
+      (i.sku && i.sku.toLowerCase() === code) ||
       i.name.toLowerCase() === code
     )
 
@@ -88,14 +90,17 @@ export function PosBilling({ onBack }: { onBack?: () => void }) {
     } else {
       toast(`❌ Item not found for barcode: ${barcodeInput}`, 'error')
     }
-  }
+  }, [barcodeInput, allItems, toast])
 
-  const addItem = (item: Item) => {
-    const existing = items.find(i => i.itemId === item.id)
-    if (existing) {
-      setItems(prev => prev.map(i => i.itemId === item.id ? { ...i, qty: i.qty + 1 } : i))
-    } else {
-      setItems(prev => [...prev, {
+  const addItem = useCallback((item: Item) => {
+    setItems(prev => {
+      const existingIdx = prev.findIndex(i => i.itemId === item.id)
+      if (existingIdx >= 0) {
+        const next = [...prev]
+        next[existingIdx] = { ...next[existingIdx], qty: next[existingIdx].qty + 1 }
+        return next
+      }
+      return [...prev, {
         itemId: item.id,
         name: item.name,
         qty: 1,
@@ -103,11 +108,11 @@ export function PosBilling({ onBack }: { onBack?: () => void }) {
         unit: item.unit || 'Pcs',
         gst: item.gstRate || 0,
         barcode: item.barcode,
-      }])
-    }
+      }]
+    })
     setSearch('')
     setShowItems(false)
-  }
+  }, [])
 
   const updateQty = (idx: number, delta: number) => {
     setItems(prev => prev.map((i, id) => id === idx ? { ...i, qty: Math.max(0, +(i.qty + delta).toFixed(3)) } : i).filter(i => i.qty > 0))
@@ -291,7 +296,7 @@ export function PosBilling({ onBack }: { onBack?: () => void }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {items.map((item, idx) => {
-            const dbItem = allItems.find(a => a.id === item.itemId)
+            const dbItem = itemsMap.get(item.itemId)
             const availableUnits = Array.from(new Set([
               item.unit,
               dbItem?.unit || 'Pcs',
