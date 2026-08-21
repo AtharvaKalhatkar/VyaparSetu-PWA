@@ -125,7 +125,7 @@ export function TabBar({ page, onNavigate, onMore }: { page: string; onNavigate:
         const isCenterSale = t.key === 'pos-billing' || t.key === 'billing'
         if (isCenterSale) {
           return (
-            <button key={t.key} onClick={() => onNavigate('pos-billing')} style={{
+            <button key={t.key} onClick={() => onNavigate('billing')} style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
               border: 'none', background: 'none', cursor: 'pointer', position: 'relative', top: -14,
             }}>
