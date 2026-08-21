@@ -114,43 +114,43 @@ export function TabBar({ page, onNavigate, onMore }: { page: string; onNavigate:
   return (
     <div className="no-print vs-tabbar" style={{
       position: 'fixed', bottom: 0, left: 0, right: 0,
-      display: 'flex', backgroundColor: '#FFFFFF',
-      borderTop: '1px solid #E5E7EB', zIndex: 100,
+      display: 'flex', backgroundColor: Colors.surface,
+      borderTop: `1px solid ${Colors.border}`, zIndex: 100,
       paddingBottom: 'env(safe-area-inset-bottom, 4px)',
-      boxShadow: '0 -4px 12px rgba(15, 23, 42, 0.08)',
-      height: 60, alignItems: 'center',
+      boxShadow: '0 -4px 14px rgba(15, 23, 42, 0.08)',
+      height: 64, alignItems: 'center',
     }}>
       {TAB_ITEMS.map(t => {
         const active = page === t.key
-        const isCenterSale = t.key === 'billing'
+        const isCenterSale = t.key === 'pos-billing' || t.key === 'billing'
         if (isCenterSale) {
           return (
-            <button key={t.key} onClick={() => onNavigate(t.key)} style={{
+            <button key={t.key} onClick={() => onNavigate('pos-billing')} style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-              border: 'none', background: 'none', cursor: 'pointer', position: 'relative', top: -12,
+              border: 'none', background: 'none', cursor: 'pointer', position: 'relative', top: -14,
             }}>
               <div style={{
-                width: 48, height: 48, borderRadius: 24,
-                background: `linear-gradient(135deg, ${Colors.success} 0%, #047857 100%)`,
+                width: 56, height: 56, borderRadius: 28,
+                background: `linear-gradient(135deg, ${Colors.primary} 0%, ${Colors.primaryHover} 100%)`,
                 color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(5,150,105,0.35)', border: '3px solid #FFFFFF',
+                boxShadow: '0 8px 20px rgba(13, 148, 136, 0.35)', border: '4px solid #FFFFFF',
                 transition: 'transform 0.15s',
               }}>
-                <t.icon size={22} />
+                <t.icon size={26} color="#fff" />
               </div>
-              <span style={{ fontSize: 10, fontWeight: 700, color: Colors.success, marginTop: 1 }}>{t.label}</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: Colors.primary, marginTop: 2 }}>{t.label}</span>
             </button>
           )
         }
         return (
           <button key={t.key} onClick={() => t.key === 'more' ? onMore?.() : onNavigate(t.key)} style={{
             flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-            padding: '4px 0', border: 'none', background: 'none', cursor: 'pointer', gap: 2,
-            color: active ? Colors.primary : Colors.textSecondary,
+            padding: '6px 0', border: 'none', background: 'none', cursor: 'pointer', gap: 3,
+            color: active ? Colors.primary : Colors.textMuted,
             transition: 'color 0.15s',
           }}>
-            <t.icon size={22} color={active ? Colors.primary : Colors.textSecondary} />
-            <span style={{ fontSize: 10, fontWeight: active ? 700 : 500 }}>{t.label}</span>
+            <t.icon size={22} color={active ? Colors.primary : Colors.textMuted} />
+            <span style={{ fontSize: 10, fontWeight: active ? 800 : 500 }}>{t.label}</span>
           </button>
         )
       })}
@@ -167,16 +167,16 @@ export function Drawer({ open, onClose, onNavigate, userName, onLogout, companyN
 
   return (
     <>
-      {open && <div className="no-print" onClick={onClose} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 300, animation: 'drFadeIn 0.2s' }} />}
+      {open && <div className="no-print" onClick={onClose} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.4)', zIndex: 300, animation: 'drFadeIn 0.2s' }} />}
       <div className="no-print" style={{
-        position: 'fixed', top: 0, left: 0, bottom: 0, width: 'min(320px, 80vw)',
+        position: 'fixed', top: 0, left: 0, bottom: 0, width: 280,
         backgroundColor: Colors.surface, zIndex: 301, overflow: 'auto',
         transform: open ? 'translateX(0)' : 'translateX(-100%)',
-        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        boxShadow: open ? '4px 0 20px rgba(0,0,0,0.15)' : 'none',
-        display: 'flex', flexDirection: 'column',
+        transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+        boxShadow: open ? '8px 0 30px rgba(15,23,42,0.15)' : 'none',
+        display: 'flex', flexDirection: 'column', borderRight: `1px solid ${Colors.border}`,
       }}>
-        <div style={{ padding: '32px 16px 18px', background: `linear-gradient(135deg, ${Colors.primary}, ${Colors.primaryDark})`, color: '#fff' }}>
+        <div style={{ padding: '32px 16px 18px', background: `linear-gradient(135deg, ${Colors.primary}, ${Colors.primaryHover})`, color: '#fff' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
             <div style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 800, color: '#fff', border: '2px solid rgba(255,255,255,0.3)' }}>
               {userName.charAt(0).toUpperCase()}
@@ -189,36 +189,42 @@ export function Drawer({ open, onClose, onNavigate, userName, onLogout, companyN
               <Icons.Close size={18} />
             </button>
           </div>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: BorderRadius.sm, padding: '8px 10px' }}>
-              <div style={{ fontSize: 10, opacity: 0.7 }}>Today's Sale</div>
-              <div style={{ fontSize: 16, fontWeight: 700 }}>{formatCurrency(todaySales)}</div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: BorderRadius.sm, padding: '8px 10px' }}>
+              <div style={{ fontSize: 10, opacity: 0.8, fontWeight: 600 }}>Today's Sale</div>
+              <div style={{ fontSize: 15, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(todaySales)}</div>
             </div>
-            <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: BorderRadius.sm, padding: '8px 10px' }}>
-              <div style={{ fontSize: 10, opacity: 0.7 }}>Outstanding</div>
-              <div style={{ fontSize: 16, fontWeight: 700 }}>{formatCurrency(outstanding)}</div>
+            <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: BorderRadius.sm, padding: '8px 10px' }}>
+              <div style={{ fontSize: 10, opacity: 0.8, fontWeight: 600 }}>Outstanding</div>
+              <div style={{ fontSize: 15, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(outstanding)}</div>
             </div>
           </div>
         </div>
-        <div style={{ flex: 1, overflow: 'auto', padding: '12px 0' }}>
+        <div style={{ flex: 1, overflow: 'auto', padding: '14px 0' }}>
           {MENU_SECTIONS.map(section => {
             const items = section.items.filter(i => config.enabledModules.includes(i.key))
             if (items.length === 0) return null
             return (
-              <div key={section.label} style={{ marginBottom: 8 }}>
-                <div style={{ padding: '4px 16px', fontSize: 10, fontWeight: 700, color: Colors.textDisabled, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>{section.label}</div>
+              <div key={section.label} style={{ marginBottom: 12 }}>
+                <div style={{ padding: '4px 16px', fontSize: 11, fontWeight: 800, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{section.label}</div>
                 {items.map(item => (
                   <button key={item.key} onClick={() => { onNavigate(item.key); onClose() }} style={{
                     display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '10px 16px',
-                    border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, color: Colors.textPrimary, textAlign: 'left',
-                    transition: 'background 0.15s',
+                    border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, color: Colors.textPrimary, textAlign: 'left',
+                    transition: 'background 0.15s', borderLeft: '3px solid transparent',
                   }}
-                    onMouseEnter={e => e.currentTarget.style.backgroundColor = Colors.surfaceVariant}
-                    onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                    onMouseEnter={e => {
+                      e.currentTarget.style.backgroundColor = Colors.primarySurface
+                      e.currentTarget.style.borderLeftColor = Colors.primary
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.backgroundColor = 'transparent'
+                      e.currentTarget.style.borderLeftColor = 'transparent'
+                    }}>
                     <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: item.color + '12', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <item.icon size={16} color={item.color} />
                     </div>
-                    <span style={{ flex: 1, fontWeight: 500 }}>{item.label}</span>
+                    <span style={{ flex: 1, fontWeight: 600 }}>{item.label}</span>
                   </button>
                 ))}
               </div>
