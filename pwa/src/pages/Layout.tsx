@@ -176,13 +176,14 @@ export function Drawer({ open, onClose, onNavigate, userName, onLogout, companyN
         boxShadow: open ? '4px 0 20px rgba(0,0,0,0.15)' : 'none',
         display: 'flex', flexDirection: 'column',
       }}>
-        <div style={{ padding: '20px 16px', background: `linear-gradient(135deg, ${Colors.primary}, ${Colors.primaryDark})`, color: '#fff' }}>
+        <div style={{ padding: '32px 16px 18px', background: `linear-gradient(135deg, ${Colors.primary}, ${Colors.primaryDark})`, color: '#fff' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: '#fff' }}>
+            <div style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 800, color: '#fff', border: '2px solid rgba(255,255,255,0.3)' }}>
               {userName.charAt(0).toUpperCase()}
             </div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 16 }}>{userName}</div>
+              <div style={{ fontWeight: 800, fontSize: 16 }}>{userName}</div>
+              <div style={{ fontSize: 11, opacity: 0.8, fontWeight: 600 }}>{companyName || 'My Business'}</div>
             </div>
             <button onClick={onClose} style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', borderRadius: 20, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
               <Icons.Close size={18} />

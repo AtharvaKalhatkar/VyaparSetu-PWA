@@ -716,12 +716,12 @@ export function Reports({ onNavigate }: { onNavigate: (p: string) => void }) {
 
   return (
     <div style={{ padding: Spacing.lg, paddingBottom: 80 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: Spacing.lg }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: Colors.textPrimary }}>Reports</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: Colors.textPrimary }}>Reports</div>
           <div style={{ fontSize: 12, color: Colors.textSecondary, marginTop: 2 }}>{allInvoices.length} invoices · {allItems.length} items</div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: Spacing.sm }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: Spacing.sm, flexWrap: 'wrap' }}>
           <ExportBar title="Reports" pdfData={reportPdfData} xlsData={reportXlsData} />
           <button onClick={downloadFullReport} style={{ ...s.primaryBtn, width: 'auto', padding: '8px 14px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             <Icons.Download size={14} /> All
