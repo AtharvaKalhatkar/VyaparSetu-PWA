@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
-import { Colors, Spacing, BorderRadius } from '../theme'
-import { s } from '../utils/styles'
+import { Colors, Spacing, BorderRadius, Shadows } from '../theme'
+import { s, statusColor } from '../utils/styles'
 import { DB } from '../utils/storage'
 import { formatCurrency, formatDate, greeting } from '../utils/formatting'
 import { Icons } from '../utils/Icons'
@@ -8,231 +8,472 @@ import { useVertical } from '../context/VerticalContext'
 import { ALL_VERTICALS } from '../verticals'
 import type { BusinessType } from '../verticals/types'
 
-function lastNDays(n: number): string[] {
-  const days: string[] = []
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i)
-    days.push(d.toISOString().split('T')[0])
-  }
-  return days
-}
-
-function StatCard({ label, value, color, bg, accentColor, onClick }: { label: string; value: string; color: string; bg?: string; accentColor?: string; onClick?: () => void }) {
-  return (
-    <div onClick={onClick} style={{
-      flex: 1, padding: '16px 14px', borderRadius: BorderRadius.md,
-      backgroundColor: bg || Colors.surface, border: `1px solid ${Colors.border}`,
-      borderTop: accentColor ? `3px solid ${accentColor}` : `1px solid ${Colors.border}`,
-      boxShadow: '0 4px 12px rgba(15,23,42,0.04)',
-      cursor: onClick ? 'pointer' : 'default', transition: 'all 0.15s ease',
-      position: 'relative', overflow: 'hidden',
-    }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 800, color, letterSpacing: '-0.5px' }}>{value}</div>
-    </div>
-  )
-}
-
 export function Dashboard({ userName, onNavigate }: { userName: string; onNavigate: (p: string) => void }) {
   const config = useVertical()
   const invoices = DB.invoices.list()
   const items = DB.items.list()
   const today = new Date().toISOString().split('T')[0]
   const profile = DB.businessProfile.get()
-
-  const [showVerticalModal, setShowVerticalModal] = useState(false)
+  const bankAccounts = DB.bankAccounts?.list() || []
 
   const salesInvoices = useMemo(() => invoices.filter(i => i.type === 'SALE' || i.docType === 'SALE'), [invoices])
   const purchaseInvoices = useMemo(() => invoices.filter(i => i.type === 'PURCHASE' || i.docType === 'PURCHASE'), [invoices])
+  const expensesList = DB.expenses.list()
 
   const todayInvoices = salesInvoices.filter(i => i.date === today)
   const todaySales = todayInvoices.reduce((s, i) => s + i.grandTotal, 0)
 
-  // To Collect = Customer Sales Invoices where paymentStatus !== 'PAID'
+  // Debtors to collect
   const toCollect = salesInvoices.filter(i => i.paymentStatus !== 'PAID').reduce((s, i) => s + i.dueAmount, 0)
 
-  // To Pay = Supplier Purchase Invoices where paymentStatus !== 'PAID' + Unpaid Expenses
+  // Payables & Expenses
   const purchaseDue = purchaseInvoices.filter(i => i.paymentStatus !== 'PAID').reduce((s, i) => s + i.dueAmount, 0)
-  const expensesTotal = DB.expenses.list().reduce((s, e) => s + e.amount, 0)
+  const expensesTotal = expensesList.reduce((s, e) => s + e.amount, 0)
   const toPay = purchaseDue + expensesTotal
 
+  // Net Cash & Bank Balance
+  const totalCashBank = bankAccounts.reduce((s, a) => s + (a.balance || 0), 0)
+
+  // Month-to-date sales
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
   const monthInvoices = salesInvoices.filter(i => i.date >= monthStart)
   const monthSales = monthInvoices.reduce((s, i) => s + i.grandTotal, 0)
+
+  // Stock Alerts
   const lowStockItems = items.filter(i => (i.currentStock || 0) <= (i.minStockLevel || 0))
 
-  // Vertical-specific calculations
+  // Expiring items
   const expiringItems = useMemo(() => {
     if (config.itemFields.batchExpiry === 'hidden') return []
     const next60Days = new Date(Date.now() + 60 * 86400000).toISOString().split('T')[0]
     return items.filter(i => i.expDate && i.expDate <= next60Days)
   }, [items, config])
 
-  const handleSwitchVertical = (newBizType: BusinessType) => {
-    DB.businessProfile.save({
-      ...profile,
-      businessType: newBizType,
-    })
-    setShowVerticalModal(false)
-    window.location.reload()
-  }
+  // Recent transactions list (last 5)
+  const recentTransactions = useMemo(() => {
+    return [...invoices]
+      .sort((a, b) => (b.date).localeCompare(a.date))
+      .slice(0, 5)
+  }, [invoices])
 
   return (
-    <div style={{ backgroundColor: Colors.background, minHeight: '100%', paddingBottom: 80 }}>
-      <style>{`
-        @keyframes fadeUp { from { opacity:0; transform:translateY(12px) } to { opacity:1; transform:translateY(0) } }
-        @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
-      `}</style>
-
-      {/* Header */}
-      <div style={{ padding: '16px 16px 12px' }}>
-        {/* Setup Business Profile Banner if Profile is Missing or Default */}
+    <div style={{ backgroundColor: Colors.background, minHeight: '100vh', paddingBottom: 100 }}>
+      
+      {/* 1. NATIVE MOBILE APP TOP BAR */}
+      <div style={{
+        backgroundColor: Colors.surface,
+        padding: '16px 16px 14px',
+        borderBottom: `1px solid ${Colors.border}`,
+        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
+      }}>
+        {/* Profile Setup Banner if Missing Details */}
         {(!profile.businessName || profile.businessName === 'My Business' || !profile.phone) && (
-          <div style={{ backgroundColor: Colors.primaryLight, border: `1.5px solid ${Colors.primary}40`, borderRadius: BorderRadius.md, padding: Spacing.md, marginBottom: Spacing.md, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{
+            backgroundColor: Colors.primarySurface,
+            border: `1px solid ${Colors.primaryLight}`,
+            borderRadius: BorderRadius.md,
+            padding: 12,
+            marginBottom: 14,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+          }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 800, color: Colors.primary, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Icons.Settings size={14} color={Colors.primary} /> Set Up Your Business Profile
+                ⚙️ Set Up Business Profile
               </div>
-              <div style={{ fontSize: 11, color: Colors.textSecondary, marginTop: 2 }}>Select business vertical, GSTIN, phone & bank details</div>
+              <div style={{ fontSize: 11, color: Colors.textSecondary, marginTop: 2 }}>Add GSTIN, phone & bank account</div>
             </div>
-            <button onClick={() => onNavigate('business-profile')} style={{ padding: '8px 12px', backgroundColor: Colors.primary, color: '#fff', border: 'none', borderRadius: BorderRadius.sm, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-              Set Up Profile ➔
+            <button onClick={() => onNavigate('business-profile')} style={{
+              padding: '6px 12px',
+              backgroundColor: Colors.primary,
+              color: '#fff',
+              border: 'none',
+              borderRadius: BorderRadius.sm,
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}>
+              Setup ➔
             </button>
           </div>
         )}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div>
-            <div style={{ fontSize: 12, color: Colors.textSecondary, marginBottom: 2 }}>{greeting()}</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: Colors.textPrimary }}>{profile.ownerName || userName || 'Owner'}</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: Colors.primary, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Icons.Building size={14} color={Colors.primary} /> {profile.businessName || 'My Business'}
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: Colors.primarySurface,
+              border: `2px solid ${Colors.primaryLight}`,
+              color: Colors.primary,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 18,
+              fontWeight: 900,
+            }}>
+              {(profile.ownerName || userName || 'O').charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: Colors.textSecondary }}>{greeting()}</div>
+              <div style={{ fontSize: 16, fontWeight: 900, color: Colors.textPrimary, lineHeight: 1.2 }}>
+                {profile.ownerName || userName || 'Store Owner'}
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: Colors.primary, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Icons.Building size={12} color={Colors.primary} /> {profile.businessName || 'My Business'}
+              </div>
             </div>
           </div>
+
           <button onClick={() => onNavigate('billing')} style={{
-            padding: '10px 18px', borderRadius: BorderRadius.md,
-            backgroundColor: Colors.primary, color: '#fff', border: 'none',
-            fontSize: 13, fontWeight: 700, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 6,
-            boxShadow: '0 4px 12px rgba(30,64,175,0.3)',
+            padding: '10px 14px',
+            borderRadius: BorderRadius.md,
+            backgroundColor: Colors.primary,
+            color: '#fff',
+            border: 'none',
+            fontSize: 13,
+            fontWeight: 800,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)',
           }}>
-            <Icons.Add size={16} /> New {config.terms.invoice || 'Sale'}
+            <Icons.Add size={16} color="#fff" /> + Sale
           </button>
         </div>
-
-        {/* Top Summary Stats */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 4 }}>
-          <StatCard label="Today's Sale" value={formatCurrency(todaySales)} color={Colors.primary} bg={Colors.primaryLight} accentColor={Colors.primary} />
-          <StatCard label="To Collect" value={formatCurrency(toCollect)} color="#4CA82F" bg="#E4F8E1" accentColor="#4CA82F" onClick={() => onNavigate('collections')} />
-          <StatCard label="To Pay" value={formatCurrency(toPay)} color="#E1416B" bg="#FFE9EE" accentColor="#E1416B" onClick={() => onNavigate('suppliers')} />
-        </div>
       </div>
 
-      {/* Quick Action Bar (Filtered by Vertical Enabled Modules) */}
-      <div style={{ padding: '4px 16px 12px' }}>
-        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-          {[
-            { icon: Icons.Payment, label: 'Collections', color: '#059669', bg: '#D1FAE5', action: 'collections', key: 'collections' },
-            { icon: Icons.Cart, label: 'Purchase', color: '#D97706', bg: '#FEF3C7', action: 'purchase', key: 'purchase' },
-            { icon: Icons.Payment, label: 'Pay Out', color: '#E1416B', bg: '#FFE4E6', action: 'add-payment-out', key: 'expenses' },
-            { icon: Icons.Inventory, label: 'Add Item', color: '#4F46E5', bg: '#E0E7FF', action: 'add-item', key: 'inventory' },
-            { icon: Icons.People, label: `Add ${config.terms.party || 'Party'}`, color: '#7C3AED', bg: '#EDE9FE', action: 'add-party', key: 'customers' },
-          ].filter(ac => config.enabledModules.includes(ac.key)).map((ac, i) => (
-            <button key={i} onClick={() => onNavigate(ac.action)} style={{
-              flex: 1, minWidth: 64, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-              padding: '12px 4px', background: Colors.surface, border: `1px solid ${Colors.border}`,
-              borderRadius: BorderRadius.md, cursor: 'pointer',
-              boxShadow: '0 2px 6px rgba(15,23,42,0.04)',
-              animation: `fadeUp 0.3s ease-out ${i * 60}ms both`,
+      <div style={{ padding: '16px 16px 0' }}>
+
+        {/* 2. EXECUTIVE FINANCIAL KPI CARDS (2x2 GRID) */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+          
+          {/* Today's Sales */}
+          <div style={{
+            backgroundColor: Colors.primarySurface,
+            border: `1px solid ${Colors.primaryLight}`,
+            borderRadius: BorderRadius.md,
+            padding: 14,
+            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: Colors.primary, textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 4 }}>
+              Today's Sale
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: Colors.primary, fontVariantNumeric: 'tabular-nums' }}>
+              {formatCurrency(todaySales)}
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: Colors.textSecondary, marginTop: 4 }}>
+              {todayInvoices.length} bill{todayInvoices.length !== 1 ? 's' : ''} generated
+            </div>
+          </div>
+
+          {/* To Collect */}
+          <div onClick={() => onNavigate('collections')} style={{
+            backgroundColor: Colors.successBg,
+            border: `1px solid ${Colors.success}30`,
+            borderRadius: BorderRadius.md,
+            padding: 14,
+            cursor: 'pointer',
+            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: Colors.success, textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 4 }}>
+              To Collect (Debtors)
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: Colors.success, fontVariantNumeric: 'tabular-nums' }}>
+              {formatCurrency(toCollect)}
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: Colors.success, marginTop: 4 }}>
+              Collect Payments ➔
+            </div>
+          </div>
+
+          {/* To Pay */}
+          <div onClick={() => onNavigate('suppliers')} style={{
+            backgroundColor: Colors.dangerBg,
+            border: `1px solid ${Colors.danger}30`,
+            borderRadius: BorderRadius.md,
+            padding: 14,
+            cursor: 'pointer',
+            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: Colors.danger, textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 4 }}>
+              To Pay (Suppliers)
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: Colors.danger, fontVariantNumeric: 'tabular-nums' }}>
+              {formatCurrency(toPay)}
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: Colors.danger, marginTop: 4 }}>
+              Pay Out Bills ➔
+            </div>
+          </div>
+
+          {/* Bank & Cash Balance */}
+          <div onClick={() => onNavigate('bank-accounts')} style={{
+            backgroundColor: Colors.infoBg,
+            border: `1px solid ${Colors.info}30`,
+            borderRadius: BorderRadius.md,
+            padding: 14,
+            cursor: 'pointer',
+            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: Colors.info, textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 4 }}>
+              Bank & Cash
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: Colors.info, fontVariantNumeric: 'tabular-nums' }}>
+              {formatCurrency(totalCashBank)}
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: Colors.info, marginTop: 4 }}>
+              View Balances ➔
+            </div>
+          </div>
+
+        </div>
+
+        {/* 3. NATIVE MOBILE QUICK ACTION TILES (4-TILE APP GRID) */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
+            Quick Actions
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+            
+            <button onClick={() => onNavigate('billing')} style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+              padding: '12px 6px', backgroundColor: Colors.surface, border: `1px solid ${Colors.border}`,
+              borderRadius: BorderRadius.md, cursor: 'pointer', boxShadow: '0 1px 3px rgba(15,23,42,0.04)',
             }}>
-              <div style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: ac.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <ac.icon size={20} color={ac.color} />
+              <div style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primarySurface, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icons.Invoice size={20} color={Colors.primary} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 600, color: Colors.textPrimary }}>{ac.label}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: Colors.textPrimary }}>+ Sale</span>
             </button>
-          ))}
-        </div>
-      </div>
 
-      {/* Vertical-Specific Special Widgets */}
-
-      {/* 1. Medical / Pharma: Expiry Alert Widget */}
-      {config.itemFields.batchExpiry !== 'hidden' && expiringItems.length > 0 && (
-        <div style={{ padding: '0 16px 12px' }}>
-          <div style={{ backgroundColor: Colors.errorLight, border: `1.5px solid ${Colors.error}40`, borderRadius: BorderRadius.md, padding: Spacing.md }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: Colors.error, display: 'flex', alignItems: 'center', gap: 6 }}>
-                💊 <span>{expiringItems.length} Medicine{expiringItems.length > 1 ? 's' : ''} Expiring Soon</span>
+            <button onClick={() => onNavigate('purchase')} style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+              padding: '12px 6px', backgroundColor: Colors.surface, border: `1px solid ${Colors.border}`,
+              borderRadius: BorderRadius.md, cursor: 'pointer', boxShadow: '0 1px 3px rgba(15,23,42,0.04)',
+            }}>
+              <div style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.warningBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icons.Truck size={20} color={Colors.warning} />
               </div>
-              <button onClick={() => onNavigate('inventory')} style={{ background: 'none', border: 'none', color: Colors.error, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>View Inventory →</button>
-            </div>
-            <div style={{ fontSize: 11, color: Colors.textSecondary }}>
-              Items like <strong>{expiringItems.slice(0, 2).map(i => i.name).join(', ')}</strong> expire within 60 days. Run a discount promotion or return to supplier.
-            </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: Colors.textPrimary }}>+ Purchase</span>
+            </button>
+
+            <button onClick={() => onNavigate('collections')} style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+              padding: '12px 6px', backgroundColor: Colors.surface, border: `1px solid ${Colors.border}`,
+              borderRadius: BorderRadius.md, cursor: 'pointer', boxShadow: '0 1px 3px rgba(15,23,42,0.04)',
+            }}>
+              <div style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.successBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icons.Payment size={20} color={Colors.success} />
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: Colors.textPrimary }}>Receive</span>
+            </button>
+
+            <button onClick={() => onNavigate('inventory')} style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+              padding: '12px 6px', backgroundColor: Colors.surface, border: `1px solid ${Colors.border}`,
+              borderRadius: BorderRadius.md, cursor: 'pointer', boxShadow: '0 1px 3px rgba(15,23,42,0.04)',
+            }}>
+              <div style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.infoBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icons.Inventory size={20} color={Colors.info} />
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: Colors.textPrimary }}>+ Item</span>
+            </button>
+
           </div>
         </div>
-      )}
 
-      {/* 2. Hardware / Construction: Warehouse Rack & Multi-Unit Converter Widget */}
-      {config.itemFields.warehouseRack !== 'hidden' && (
-        <div style={{ padding: '0 16px 12px' }}>
-          <div style={{ backgroundColor: '#F0F9FF', border: `1px solid #0284C7`, borderRadius: BorderRadius.md, padding: Spacing.md, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 800, color: '#0369A1' }}>🏗️ Warehouse Racks & Multi-Unit Engine</div>
-              <div style={{ fontSize: 11, color: Colors.textSecondary, marginTop: 2 }}>Easily track hardware stock in Racks, Aisles & Convert Ton ➔ Kg or Box ➔ Pcs</div>
-            </div>
-            <button onClick={() => onNavigate('warehouses')} style={{ padding: '6px 10px', backgroundColor: '#0284C7', color: '#fff', border: 'none', borderRadius: BorderRadius.sm, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-              Racks
-            </button>
-          </div>
-        </div>
-      )}
+        {/* 4. SMART BUSINESS ALERTS */}
 
-      {/* 3. Grocery / Kirana: Low Stock FMCG Warning */}
-      {lowStockItems.length > 0 && (
-        <div style={{ padding: '0 16px 12px' }}>
-          <div style={{ backgroundColor: Colors.warning + '15', border: `1px solid ${Colors.warning}40`, borderRadius: BorderRadius.md, padding: Spacing.md, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        {/* Low Stock Warning */}
+        {lowStockItems.length > 0 && (
+          <div style={{
+            backgroundColor: Colors.warningBg,
+            border: `1px solid ${Colors.warning}40`,
+            borderRadius: BorderRadius.md,
+            padding: 12,
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 800, color: Colors.warning, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Icons.Warning size={14} color={Colors.warning} /> {lowStockItems.length} Low Stock Item{lowStockItems.length > 1 ? 's' : ''}
+                ⚠️ {lowStockItems.length} Item{lowStockItems.length > 1 ? 's' : ''} Low in Stock
               </div>
-              <div style={{ fontSize: 11, color: Colors.textSecondary, marginTop: 2 }}>{lowStockItems.slice(0, 3).map(i => i.name).join(', ')} below minimum level</div>
+              <div style={{ fontSize: 11, color: Colors.textSecondary, marginTop: 2 }}>
+                {lowStockItems.slice(0, 2).map(i => i.name).join(', ')} below threshold
+              </div>
             </div>
-            <button onClick={() => onNavigate('inventory')} style={{ padding: '6px 10px', backgroundColor: Colors.warning, color: '#fff', border: 'none', borderRadius: BorderRadius.sm, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-              Reorder
+            <button onClick={() => onNavigate('inventory')} style={{
+              padding: '6px 12px',
+              backgroundColor: Colors.warning,
+              color: '#fff',
+              border: 'none',
+              borderRadius: BorderRadius.sm,
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}>
+              Reorder ➔
             </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Monthly Summary */}
-      <div style={{ padding: '4px 16px 0' }}>
-        <div style={{
-          backgroundColor: Colors.surface, borderRadius: BorderRadius.md, overflow: 'hidden',
-          border: `1px solid ${Colors.border}`, animation: 'fadeUp 0.35s ease-out 0.1s both',
-        }}>
-          <div style={{ padding: '12px 14px', borderBottom: `1px solid ${Colors.divider}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: Colors.textPrimary }}>This Month Performance</span>
-            <button onClick={() => onNavigate('reports')} style={{ background: 'none', border: 'none', color: Colors.primary, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Report →</button>
+        {/* Pharma Expiry Warning */}
+        {config.itemFields.batchExpiry !== 'hidden' && expiringItems.length > 0 && (
+          <div style={{
+            backgroundColor: Colors.dangerBg,
+            border: `1px solid ${Colors.danger}40`,
+            borderRadius: BorderRadius.md,
+            padding: 12,
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: Colors.danger, display: 'flex', alignItems: 'center', gap: 6 }}>
+                💊 {expiringItems.length} Medicine{expiringItems.length > 1 ? 's' : ''} Expiring Soon
+              </div>
+              <div style={{ fontSize: 11, color: Colors.textSecondary, marginTop: 2 }}>
+                {expiringItems.slice(0, 2).map(i => i.name).join(', ')} expire within 60 days
+              </div>
+            </div>
+            <button onClick={() => onNavigate('inventory')} style={{
+              padding: '6px 12px',
+              backgroundColor: Colors.danger,
+              color: '#fff',
+              border: 'none',
+              borderRadius: BorderRadius.sm,
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}>
+              Check ➔
+            </button>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
-            <div style={{ padding: '14px', borderRight: `1px solid ${Colors.divider}`, borderBottom: `1px solid ${Colors.divider}` }}>
-              <div style={{ fontSize: 11, color: Colors.textSecondary, marginBottom: 4 }}>Sales</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: Colors.success }}>{formatCurrency(monthSales)}</div>
+        )}
+
+        {/* 5. LIVE RECENT TRANSACTIONS STREAM */}
+        <div style={{
+          backgroundColor: Colors.surface,
+          border: `1px solid ${Colors.border}`,
+          borderRadius: BorderRadius.md,
+          padding: 16,
+          marginBottom: 16,
+          boxShadow: '0 1px 3px rgba(15,23,42,0.04)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: Colors.textPrimary }}>Recent Activity</div>
+            <button onClick={() => onNavigate('invoices')} style={{ background: 'none', border: 'none', color: Colors.primary, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+              View All ➔
+            </button>
+          </div>
+
+          {recentTransactions.length === 0 ? (
+            <div style={{ fontSize: 12, color: Colors.textMuted, textAlign: 'center', padding: '16px 0' }}>
+              No transactions recorded yet. Tap <strong>+ Sale</strong> to create your first invoice!
             </div>
-            <div style={{ padding: '14px', borderBottom: `1px solid ${Colors.divider}` }}>
-              <div style={{ fontSize: 11, color: Colors.textSecondary, marginBottom: 4 }}>Transactions</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: Colors.textPrimary }}>{monthInvoices.length}</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {recentTransactions.map(inv => {
+                const isSale = inv.type === 'SALE' || inv.docType === 'SALE'
+                return (
+                  <div key={inv.id} onClick={() => onNavigate('invoices')} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingBottom: 10,
+                    borderBottom: `1px solid ${Colors.divider}`,
+                    cursor: 'pointer',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 18,
+                        backgroundColor: isSale ? Colors.successBg : Colors.warningBg,
+                        color: isSale ? Colors.success : Colors.warning,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 14, fontWeight: 800, flexShrink: 0,
+                      }}>
+                        {isSale ? '📈' : '🚚'}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: Colors.textPrimary }}>
+                          {inv.partyName || 'Walk-in Customer'}
+                        </div>
+                        <div style={{ fontSize: 11, color: Colors.textSecondary }}>
+                          {inv.invoiceNo} • {formatDate(inv.date)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 14, fontWeight: 900, color: isSale ? Colors.success : Colors.textPrimary, fontVariantNumeric: 'tabular-nums' }}>
+                        {formatCurrency(inv.grandTotal)}
+                      </div>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: statusColor(inv.paymentStatus), textTransform: 'uppercase' }}>
+                        {inv.paymentStatus}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-            <div style={{ padding: '14px', borderRight: `1px solid ${Colors.divider}` }}>
-              <div style={{ fontSize: 11, color: Colors.textSecondary, marginBottom: 4 }}>Unpaid Bills</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: Colors.error }}>{invoices.filter(i => i.paymentStatus !== 'PAID').length}</div>
+          )}
+        </div>
+
+        {/* 6. MONTHLY PERFORMANCE CARD */}
+        <div style={{
+          backgroundColor: Colors.surface,
+          border: `1px solid ${Colors.border}`,
+          borderRadius: BorderRadius.md,
+          padding: 16,
+          boxShadow: '0 1px 3px rgba(15,23,42,0.04)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: Colors.textPrimary }}>This Month Performance</div>
+            <button onClick={() => onNavigate('reports')} style={{ background: 'none', border: 'none', color: Colors.primary, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+              Full Reports ➔
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div style={{ backgroundColor: Colors.background, padding: 12, borderRadius: BorderRadius.sm }}>
+              <div style={{ fontSize: 11, color: Colors.textSecondary, fontWeight: 600 }}>Total Sales</div>
+              <div style={{ fontSize: 17, fontWeight: 900, color: Colors.success, marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+                {formatCurrency(monthSales)}
+              </div>
             </div>
-            <div style={{ padding: '14px' }}>
-              <div style={{ fontSize: 11, color: Colors.textSecondary, marginBottom: 4 }}>Total Expenses</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: Colors.error }}>{formatCurrency(expensesTotal)}</div>
+
+            <div style={{ backgroundColor: Colors.background, padding: 12, borderRadius: BorderRadius.sm }}>
+              <div style={{ fontSize: 11, color: Colors.textSecondary, fontWeight: 600 }}>Invoices Generated</div>
+              <div style={{ fontSize: 17, fontWeight: 900, color: Colors.textPrimary, marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+                {monthInvoices.length}
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: Colors.background, padding: 12, borderRadius: BorderRadius.sm }}>
+              <div style={{ fontSize: 11, color: Colors.textSecondary, fontWeight: 600 }}>Total Expenses</div>
+              <div style={{ fontSize: 17, fontWeight: 900, color: Colors.danger, marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+                {formatCurrency(expensesTotal)}
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: Colors.background, padding: 12, borderRadius: BorderRadius.sm }}>
+              <div style={{ fontSize: 11, color: Colors.textSecondary, fontWeight: 600 }}>Est. Net Profit</div>
+              <div style={{ fontSize: 17, fontWeight: 900, color: (monthSales - expensesTotal) >= 0 ? Colors.primary : Colors.danger, marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+                {formatCurrency(monthSales - expensesTotal)}
+              </div>
             </div>
           </div>
         </div>
+
       </div>
     </div>
   )
