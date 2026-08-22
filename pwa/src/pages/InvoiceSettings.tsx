@@ -41,7 +41,7 @@ export function InvoiceSettings() {
 
   const handleSave = () => {
     DB.settings.save({
-      prefix: prefix.trim() || 'INV', template, defaultTerms: defaultTerms.trim(),
+      prefix: (prefix || '').trim() || 'INV', template, defaultTerms: (defaultTerms || '').trim(),
       enableGst, themeColor, showBank, showSignature, showLogo: true, paperSize: 'A4',
       currency: currencyCode, currencySymbol,
       roundOff, lateFeePercent: parseFloat(lateFeePercent) || 0,

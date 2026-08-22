@@ -209,7 +209,7 @@ export function StaggerList({ children, baseDelay = 50 }: { children: React.Reac
   )
 }
 
-/* ── Bottom Sheet ── */
+/* ── Center Dialog Sheet ── */
 export function BottomSheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title?: string; children: React.ReactNode }) {
   useEffect(() => {
     if (open) document.body.style.overflow = 'hidden'
@@ -222,27 +222,28 @@ export function BottomSheet({ open, onClose, title, children }: { open: boolean;
   return (
     <>
       <div onClick={onClose} style={{
-        position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 200,
+        position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.55)', zIndex: 300,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
         animation: 'bsFadeIn 0.2s ease-out',
-      }} />
-      <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 201,
-        backgroundColor: Colors.surface, borderRadius: '16px 16px 0 0', maxHeight: '75vh',
-        display: 'flex', flexDirection: 'column',
-        animation: 'bsSlideUp 0.3s ease-out',
-        boxShadow: '0 -4px 20px rgba(0,0,0,0.15)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: `1px solid ${Colors.divider}`, flexShrink: 0 }}>
-          <span style={{ fontSize: 16, fontWeight: 700, color: Colors.textPrimary }}>{title || ''}</span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: Colors.textDisabled, cursor: 'pointer', padding: 4, display: 'flex' }}><Icons.Close size={20} /></button>
-        </div>
-        <div style={{ flex: 1, overflow: 'auto', padding: '8px 0' }}>
-          {children}
+        <div onClick={e => e.stopPropagation()} style={{
+          backgroundColor: Colors.surface, borderRadius: 16, width: '100%', maxWidth: 440,
+          maxHeight: '80vh', display: 'flex', flexDirection: 'column',
+          boxShadow: '0 20px 40px rgba(15,23,42,0.3)', animation: 'modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+          overflow: 'hidden', zIndex: 301,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: `1px solid ${Colors.divider}`, flexShrink: 0 }}>
+            <span style={{ fontSize: 16, fontWeight: 800, color: Colors.textPrimary }}>{title || ''}</span>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: Colors.textDisabled, cursor: 'pointer', padding: 4, display: 'flex' }}><Icons.Close size={20} /></button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '12px 0' }}>
+            {children}
+          </div>
         </div>
       </div>
       <style>{`
         @keyframes bsFadeIn { from { opacity:0 } to { opacity:1 } }
-        @keyframes bsSlideUp { from { transform:translateY(100%) } to { transform:translateY(0) } }
+        @keyframes modalPop { from { opacity:0; transform: scale(0.94) translateY(10px) } to { opacity:1; transform: scale(1) translateY(0) } }
       `}</style>
     </>
   )
@@ -266,22 +267,38 @@ export function Skeleton({ width = '100%', height = 14, borderRadius = 6, style 
 /* ── List Skeleton ── */
 /* ── Bottom Sheet Select ── */
 interface SelectOption { value: string; label: string; sublabel?: string; }
-export function SelectSheet({ open, onClose, options, onSelect, title, searchable }: { open: boolean; onClose: () => void; options: SelectOption[]; onSelect: (value: string) => void; title?: string; searchable?: boolean }) {
+export function SelectSheet({ open, onClose, options, onSelect, title, searchable, onAddNew }: { open: boolean; onClose: () => void; options: SelectOption[]; onSelect: (value: string) => void; title?: string; searchable?: boolean; onAddNew?: (name: string) => void }) {
   const [q, setQ] = useState('')
   const filtered = searchable && q ? options.filter(o => o.label.toLowerCase().includes(q.toLowerCase()) || o.sublabel?.toLowerCase().includes(q.toLowerCase())) : options
+  const hasExactMatch = q && options.some(o => o.label.toLowerCase() === q.trim().toLowerCase())
+
   return (
     <BottomSheet open={open} onClose={onClose} title={title}>
       {searchable && (
         <div style={{ padding: '0 16px 8px' }}>
-          <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search..." style={{
+          <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Type customer or supplier name..." style={{
             width: '100%', padding: '10px 12px', border: `1.5px solid ${Colors.border}`, borderRadius: BorderRadius.sm,
             fontSize: 14, outline: 'none', boxSizing: 'border-box', backgroundColor: Colors.surfaceVariant, color: Colors.textPrimary,
           }} />
         </div>
       )}
-      {filtered.length === 0 && <div style={{ padding: '24px 16px', textAlign: 'center', color: Colors.textDisabled, fontSize: 13 }}>No options found</div>}
+
+      {/* Add New Customer Button */}
+      {onAddNew && q.trim().length > 0 && !hasExactMatch && (
+        <button onClick={() => { onAddNew(q.trim()); setQ('') }} style={{
+          display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 16px',
+          border: 'none', background: Colors.primaryLight, cursor: 'pointer', fontSize: 14, fontWeight: 700, color: Colors.primary, textAlign: 'left',
+          borderBottom: `1px solid ${Colors.border}`,
+        }}>
+          <div style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 900 }}>+</div>
+          <span>Add "{q.trim()}" as New Customer</span>
+        </button>
+      )}
+
+      {filtered.length === 0 && !onAddNew && <div style={{ padding: '24px 16px', textAlign: 'center', color: Colors.textDisabled, fontSize: 13 }}>No options found</div>}
+
       {filtered.map(opt => (
-        <button key={opt.value} onClick={() => { onSelect(opt.value); onClose() }} style={{
+        <button key={opt.value} onClick={() => { onSelect(opt.value); onClose(); setQ('') }} style={{
           display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2, width: '100%', padding: '12px 16px',
           border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, color: Colors.textPrimary, textAlign: 'left',
           borderBottom: `1px solid ${Colors.divider}`,

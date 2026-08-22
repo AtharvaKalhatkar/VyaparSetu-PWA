@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useVertical } from '../context/VerticalContext'
 import { Colors, Spacing, BorderRadius, Shadows } from '../theme'
 import { Icons } from '../utils/Icons'
@@ -45,7 +45,7 @@ const TAB_ITEMS = [
   { key: 'inventory', label: 'Items', icon: Icons.Inventory },
   { key: 'billing', label: 'Sale', icon: Icons.Billing },
   { key: 'ledger', label: 'Parties', icon: Icons.People },
-  { key: 'more', label: 'More', icon: Icons.More },
+  { key: 'more', label: 'Menu', icon: Icons.More },
 ]
 
 const MENU_SECTIONS = [
@@ -53,11 +53,19 @@ const MENU_SECTIONS = [
     label: 'Transactions', items: [
       { key: 'purchase', label: 'Purchase', icon: Icons.Truck, color: Colors.warning },
       { key: 'invoices', label: 'Invoices', icon: Icons.Invoice, color: Colors.accent },
-      { key: 'collections', label: 'Payment Collections', icon: Icons.Payment, color: '#059669' },
       { key: 'orders', label: 'Orders', icon: Icons.Cart, color: '#2563EB' },
       { key: 'estimates', label: 'Estimates', icon: Icons.Edit, color: '#7C3AED' },
       { key: 'returns', label: 'Returns', icon: Icons.Refresh, color: '#DC2626' },
       { key: 'challans', label: 'Load Sheet', icon: Icons.Truck, color: '#D97706' },
+    ]
+  },
+  {
+    label: 'Cash & Bank', items: [
+      { key: 'bank-accounts', label: 'Bank Accounts', icon: Icons.Bank, color: Colors.primary },
+      { key: 'cash-in-hand', label: 'Cash in Hand', icon: Icons.Money, color: Colors.success },
+      { key: 'cheques', label: 'Cheques & PDCs', icon: Icons.Document, color: Colors.accent },
+      { key: 'collections', label: 'Payment In / Collection', icon: Icons.Payment, color: '#059669' },
+      { key: 'add-payment-out', label: 'Payment Out', icon: Icons.Payment, color: Colors.error },
     ]
   },
   {
@@ -103,9 +111,10 @@ const MENU_SECTIONS = [
   },
   {
     label: 'Settings', items: [
+      { key: 'settings', label: 'App Settings', icon: Icons.Settings, color: Colors.primary },
       { key: 'business-profile', label: 'Business Profile', icon: Icons.Building, color: Colors.primaryDark },
-      { key: 'invoice-settings', label: 'Invoice Settings', icon: Icons.Settings, color: Colors.primary },
-      { key: 'settings', label: 'App Settings', icon: Icons.Settings, color: Colors.textSecondary },
+      { key: 'invoice-settings', label: 'Print Settings', icon: Icons.Invoice, color: Colors.accent },
+      { key: 'data-export', label: 'Import & Export', icon: Icons.Download, color: Colors.error },
     ]
   },
 ]
@@ -143,7 +152,7 @@ export function TabBar({ page, onNavigate, onMore }: { page: string; onNavigate:
           )
         }
         return (
-          <button key={t.key} onClick={() => t.key === 'more' ? onMore?.() : onNavigate(t.key)} style={{
+          <button key={t.key} onClick={() => onNavigate(t.key)} style={{
             flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
             padding: '6px 0', border: 'none', background: 'none', cursor: 'pointer', gap: 3,
             color: active ? Colors.primary : Colors.textMuted,
@@ -253,23 +262,96 @@ export function Drawer({ open, onClose, onNavigate, userName, onLogout, companyN
 
 export function MoreMenu({ onNavigate }: { onNavigate: (p: string) => void }) {
   const config = useVertical()
-  const allItems = MENU_SECTIONS.flatMap(s => s.items).filter(i => config.enabledModules.includes(i.key))
+  const [search, setSearch] = useState('')
+
+  const filteredSections = useMemo(() => {
+    return MENU_SECTIONS.map(section => {
+      const items = section.items.filter(i => config.enabledModules.includes(i.key) && (
+        !search || i.label.toLowerCase().includes(search.toLowerCase())
+      ))
+      return { ...section, items }
+    }).filter(section => section.items.length > 0)
+  }, [config, search])
+
   return (
-    <div style={{ padding: Spacing.lg }}>
-      <div style={{ fontSize: 14, fontWeight: 600, color: Colors.textPrimary, marginBottom: Spacing.lg }}>All Menu</div>
-      {allItems.map(item => (
-        <button key={item.key} onClick={() => onNavigate(item.key)} style={{
-          display: 'flex', alignItems: 'center', gap: Spacing.md, width: '100%', padding: '14px 16px',
-          backgroundColor: Colors.surface, border: `1px solid ${Colors.border}`, borderRadius: BorderRadius.md,
-          marginBottom: Spacing.sm, cursor: 'pointer', fontSize: 14, color: Colors.textPrimary, textAlign: 'left',
-        }}>
-          <div style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: item.color + '12', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <item.icon size={20} color={item.color} />
+    <div style={{ backgroundColor: Colors.background, minHeight: '100vh', padding: '16px 16px 100px' }}>
+      
+      {/* Search Header */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 20, fontWeight: 900, color: Colors.textPrimary, marginBottom: 4 }}>
+          All App Menu & Features
+        </div>
+        <div style={{ fontSize: 12, color: Colors.textSecondary, marginBottom: 12 }}>
+          Access all business billing, accounting, inventory & report modules
+        </div>
+
+        <div style={{ position: 'relative' }}>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search any menu option or report..."
+            style={{
+              width: '100%', padding: '12px 14px 12px 38px',
+              border: `1.5px solid ${Colors.border}`, borderRadius: BorderRadius.md,
+              fontSize: 14, outline: 'none', backgroundColor: Colors.surface,
+              color: Colors.textPrimary, boxShadow: '0 1px 3px rgba(15,23,42,0.04)',
+              boxSizing: 'border-box',
+            }}
+          />
+          <div style={{ position: 'absolute', left: 12, top: 12, color: Colors.textMuted }}>
+            <Icons.Search size={18} />
           </div>
-          <span style={{ flex: 1, fontWeight: 500 }}>{item.label}</span>
-          <span style={{ color: Colors.textDisabled, fontSize: 18 }}>›</span>
-        </button>
-      ))}
+        </div>
+      </div>
+
+      {/* Grouped Feature Sections */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {filteredSections.map((section: any) => (
+          <div key={section.label} style={{
+            backgroundColor: Colors.surface, border: `1px solid ${Colors.border}`,
+            borderRadius: BorderRadius.md, padding: 14, boxShadow: '0 1px 3px rgba(15,23,42,0.04)',
+          }}>
+            <div style={{
+              fontSize: 12, fontWeight: 900, color: Colors.primary,
+              textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12,
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <span style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primary }} />
+              {section.label}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {section.items.map((item: any) => (
+                <button
+                  key={item.key}
+                  onClick={() => onNavigate(item.key)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                    backgroundColor: Colors.background, border: `1px solid ${Colors.border}`,
+                    borderRadius: BorderRadius.sm, cursor: 'pointer', textAlign: 'left',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = Colors.primary}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = Colors.border}
+                >
+                  <div style={{
+                    width: 34, height: 34, borderRadius: 10,
+                    backgroundColor: item.color + '18',
+                    color: item.color,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <item.icon size={18} color={item.color} />
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: Colors.textPrimary, lineHeight: 1.2 }}>
+                    {item.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
     </div>
   )
 }
@@ -357,28 +439,43 @@ export function Header({ title, onBack, onMenuToggle, rightAction }: { title: st
   return (
     <div className="no-print" style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '14px 16px',
-      background: `linear-gradient(135deg, ${Colors.primary} 0%, ${Colors.primaryDark} 100%)`,
-      position: 'sticky', top: 0,
-      minHeight: 56, zIndex: 50,
-      boxShadow: '0 2px 10px rgba(30, 64, 175, 0.25)',
+      padding: '8px 16px',
+      backgroundColor: Colors.surface,
+      borderBottom: `1px solid ${Colors.border}`,
+      position: 'sticky', top: 0, flexShrink: 0,
+      height: 48, zIndex: 100,
+      boxShadow: '0 1px 3px rgba(15, 23, 42, 0.05)',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: Spacing.sm }}>
-        {onBack ? (
-          <button onClick={onBack} title="Go Back" style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center' }}><Icons.Back size={22} /></button>
-        ) : onMenuToggle ? (
-          <button onClick={onMenuToggle} title="Open Menu" style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center' }}><Icons.More size={22} /></button>
-        ) : null}
-        <h1 style={{ fontSize: 18, fontWeight: 700, color: '#fff', margin: 0, letterSpacing: '-0.3px' }}>{title}</h1>
-      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {onBack ? (
+          <button onClick={onBack} title="Go Back" style={{
+            width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.surfaceVariant,
+            border: `1px solid ${Colors.border}`, color: Colors.textPrimary, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+          }}>
+            <Icons.Back size={18} color={Colors.textPrimary} />
+          </button>
+        ) : onMenuToggle ? (
+          <button onClick={onMenuToggle} title="Open Menu" style={{
+            width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.surfaceVariant,
+            border: `1px solid ${Colors.border}`, color: Colors.textPrimary, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+          }}>
+            <Icons.More size={18} color={Colors.textPrimary} />
+          </button>
+        ) : null}
+        <h1 style={{ fontSize: 15, fontWeight: 800, color: Colors.textPrimary, margin: 0 }}>{title}</h1>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <button onClick={handleManualSync} disabled={syncing} title="Sync PC & Mobile Data" style={{
-          backgroundColor: 'rgba(255,255,255,0.18)', border: 'none', color: '#fff', padding: '4px 10px',
+          backgroundColor: Colors.surfaceVariant, border: `1px solid ${Colors.border}`,
+          color: Colors.textSecondary, padding: '4px 10px',
           borderRadius: 14, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4
         }}>
-          <Icons.Refresh size={13} style={{ animation: syncing ? 'spin 1s linear infinite' : undefined }} /> {syncing ? 'Syncing...' : 'Cloud Sync'}
+          <Icons.Refresh size={12} color={Colors.primary} style={{ animation: syncing ? 'spin 1s linear infinite' : undefined }} />
+          {syncing ? 'Syncing...' : 'Sync'}
         </button>
-        {rightAction && <div style={{ color: '#fff' }}>{rightAction}</div>}
+        {rightAction && <div style={{ color: Colors.textPrimary }}>{rightAction}</div>}
       </div>
     </div>
   )

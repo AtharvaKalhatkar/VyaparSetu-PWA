@@ -55,7 +55,7 @@ export function AddParty({ editId, onBack, onNavigate }: { editId?: string; onBa
           icon: <Icons.People size={16} color="#fff" />,
         }}
         secondaryAction={{
-          label: '+ Add Another Party',
+          label: 'Add Another Party',
           onClick: () => { setSaved(false); setName(''); setPhone(''); setAddress(''); setGstin('') },
           icon: <Icons.Add size={16} color="#334155" />,
         }}

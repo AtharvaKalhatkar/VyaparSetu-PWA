@@ -34,6 +34,55 @@ export function Billing({ editId, initialType, onBack, onNavigate }: { editId?: 
   const [lastSavedInv, setLastSavedInv] = useState<any>(null)
   const [showPicker, setShowPicker] = useState(false)
   const [showPartySheet, setShowPartySheet] = useState(false)
+  const [showAddPartyModal, setShowAddPartyModal] = useState(false)
+  const [newPartyName, setNewPartyName] = useState('')
+  const [newPartyPhone, setNewPartyPhone] = useState('')
+  const [showAddItemModal, setShowAddItemModal] = useState(false)
+  const [newItemName, setNewItemName] = useState('')
+  const [newItemPrice, setNewItemPrice] = useState('')
+  const [newItemStock, setNewItemStock] = useState('10')
+
+  const handleAddNewItemPrompt = (name: string) => {
+    setNewItemName(name)
+    setNewItemPrice('')
+    setNewItemStock('10')
+    setShowAddItemModal(true)
+  }
+
+  const handleSaveNewItem = () => {
+    if (!newItemName.trim()) {
+      toast('Please enter product name', 'warning')
+      return
+    }
+    const price = parseFloat(newItemPrice) || 0
+    const stock = parseFloat(newItemStock) || 0
+    const newItem = {
+      id: generateId(),
+      name: newItemName.trim(),
+      sku: 'SKU-' + Math.floor(1000 + Math.random() * 9000),
+      unit: 'PCS',
+      sellingPrice: price,
+      purchasePrice: price * 0.8,
+      currentStock: stock,
+      minStockLevel: 5,
+      gstRate: config.defaultGstRate || 0,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    }
+    DB.items.save(newItem)
+    setLines(prev => [...prev, {
+      itemId: newItem.id,
+      name: newItem.name,
+      qty: '1',
+      rate: String(price),
+      unit: newItem.unit,
+      gstRate: newItem.gstRate,
+    }])
+    setShowAddItemModal(false)
+    setShowPicker(false)
+    setSearch('')
+    toast(`Created & added product "${newItem.name}"!`, 'success')
+  }
   const [showAiSuggestions, setShowAiSuggestions] = useState(false)
   const [bundleRecs, setBundleRecs] = useState<BundleSuggestion[]>([])
   const { toast } = useToast()
@@ -42,19 +91,71 @@ export function Billing({ editId, initialType, onBack, onNavigate }: { editId?: 
 
   useEffect(() => { if (showPicker && searchRef.current) searchRef.current.focus() }, [showPicker])
 
+  // Auto-open Party Sheet on page land if no party is selected
+  useEffect(() => {
+    if (!partyId && !editId) {
+      setShowPartySheet(true)
+    }
+  }, [])
+
+  const handleAddNewPartyPrompt = (name: string) => {
+    setNewPartyName(name)
+    setNewPartyPhone('')
+    setShowAddPartyModal(true)
+  }
+
+  const handleSaveNewParty = () => {
+    if (!newPartyName.trim()) {
+      toast('Please enter customer name', 'warning')
+      return
+    }
+    const newP = {
+      id: generateId(),
+      name: newPartyName.trim(),
+      phone: newPartyPhone.trim(),
+      type: type === 'PURCHASE' ? ('SUPPLIER' as const) : ('CUSTOMER' as const),
+      openingBalance: 0,
+      balanceType: 'DEBIT' as const,
+      creditLimit: 0,
+      creditDays: 0,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    }
+    DB.parties.save(newP)
+    setPartyId(newP.id)
+    setShowAddPartyModal(false)
+    setShowPartySheet(false)
+    toast(`Created & selected "${newP.name}"!`, 'success')
+  }
+
+  const partyBalances = useMemo(() => {
+    const invs = DB.invoices.list()
+    const map = new Map<string, number>()
+    for (const p of DB.parties.list()) {
+      const pInvs = invs.filter(i => i.partyId === p.id)
+      const salesDue = pInvs.filter(i => (i.type === 'SALE' || i.docType === 'SALE') && i.paymentStatus !== 'PAID').reduce((sum, i) => sum + i.dueAmount, 0)
+      const purchDue = pInvs.filter(i => (i.type === 'PURCHASE' || i.docType === 'PURCHASE') && i.paymentStatus !== 'PAID').reduce((sum, i) => sum + i.dueAmount, 0)
+      const bal = (p.openingBalance || 0) + salesDue - purchDue
+      map.set(p.id, bal)
+    }
+    return map
+  }, [])
+
   const parties = DB.parties.list().filter(p => type === 'SALE' ? (p.type === 'CUSTOMER' || p.type === 'BOTH') : (p.type === 'SUPPLIER' || p.type === 'BOTH'))
   const allItems = DB.items.list().filter(i => i.isActive)
   const party = parties.find(p => p.id === partyId)
 
+  const [isGstInvoice, setIsGstInvoice] = useState<boolean>(existing?.isGstInvoice ?? true)
+
   const { subtotal, tax, grandTotal } = useMemo(() => {
     const sub = lines.reduce((s, l) => s + safeNum(l.qty) * safeNum(l.rate), 0)
     const discAmt = safeNum(discount)
-    if (!config.enableGst) return { subtotal: sub, tax: 0, grandTotal: Math.max(0, sub - discAmt) }
+    if (!config.enableGst || !isGstInvoice) return { subtotal: sub, tax: 0, grandTotal: Math.max(0, sub - discAmt) }
     const taxableBase = Math.max(0, sub - discAmt)
     const ratio = sub > 0 ? taxableBase / sub : 1
     const taxAmt = lines.reduce((s, l) => s + safeNum(l.qty) * safeNum(l.rate) * l.gstRate / 100 * ratio, 0)
     return { subtotal: sub, tax: taxAmt, grandTotal: taxableBase + taxAmt }
-  }, [lines, discount, config.enableGst])
+  }, [lines, discount, config.enableGst, isGstInvoice])
 
   const addLine = (itemId: string) => {
     const item = allItems.find(i => i.id === itemId)
@@ -141,7 +242,7 @@ export function Billing({ editId, initialType, onBack, onNavigate }: { editId?: 
         DB.invoices.list().filter(i => i.docType === (type === 'PURCHASE' ? 'PURCHASE' : 'SALE')).map(i => i.invoiceNo),
         type === 'PURCHASE' ? 'PUR' : 'INV'
       ),
-      partyId, partyName: party?.name || '', type, docType: type,
+      partyId, partyName: party?.name || '', type, docType: type, isGstInvoice,
       items, subtotal, discountAmount: discAmt, taxAmount: tax, grandTotal,
       paymentStatus: ((existing?.paidAmount || 0) >= grandTotal ? 'PAID' : (existing?.paidAmount || 0) > 0 ? 'PARTIAL' : 'PENDING') as 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE' | 'DRAFT',
       paidAmount: existing?.paidAmount || 0, dueAmount: Math.max(0, grandTotal - (existing?.paidAmount || 0)),
@@ -256,20 +357,99 @@ export function Billing({ editId, initialType, onBack, onNavigate }: { editId?: 
           <Icons.Delete size={16} /> View-only mode — you don't have permission to create or edit invoices
         </div>
       )}
-      <div style={s.toggleGroup}>
-        <button onClick={() => setType('SALE')} style={s.toggle(type === 'SALE', Colors.primary)}>Sale</button>
-        <button onClick={() => setType('PURCHASE')} style={s.toggle(type === 'PURCHASE', Colors.warning)}>Purchase</button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md, gap: 10, flexWrap: 'wrap' }}>
+        <div style={s.toggleGroup}>
+          <button onClick={() => setType('SALE')} style={s.toggle(type === 'SALE', Colors.primary)}>Sale</button>
+          <button onClick={() => setType('PURCHASE')} style={s.toggle(type === 'PURCHASE', Colors.warning)}>Purchase</button>
+        </div>
+
+        {config.enableGst && (
+          <label onClick={() => setIsGstInvoice(!isGstInvoice)} style={{
+            display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+            backgroundColor: isGstInvoice ? Colors.primaryLight : Colors.surfaceVariant,
+            border: `1.5px solid ${isGstInvoice ? Colors.primary : Colors.border}`,
+            borderRadius: BorderRadius.sm, padding: '6px 12px', fontSize: 12, fontWeight: 800,
+            color: isGstInvoice ? Colors.primary : Colors.textSecondary,
+            userSelect: 'none',
+          }}>
+            <input
+              type="checkbox"
+              checked={isGstInvoice}
+              onChange={e => setIsGstInvoice(e.target.checked)}
+              style={{ accentColor: Colors.primary, width: 15, height: 15, cursor: 'pointer' }}
+            />
+            {isGstInvoice ? '☑️ GST Invoice' : '☐ Non-GST Bill'}
+          </label>
+        )}
       </div>
 
       <Field label="Party">
         <div onClick={() => setShowPartySheet(true)} style={{ ...s.select, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', appearance: 'none' as const }}>
-          <span style={{ color: partyId ? Colors.textPrimary : Colors.textDisabled }}>{party ? party.name : 'Select party...'}</span>
+          <span style={{ color: partyId ? Colors.textPrimary : Colors.textDisabled, fontWeight: partyId ? 800 : 400 }}>
+            {party
+              ? `${party.name} (${formatCurrency(partyBalances.get(party.id) || 0)})`
+              : 'Select party...'}
+          </span>
           <span style={{ color: Colors.textDisabled, fontSize: 10 }}>▼</span>
         </div>
       </Field>
-      <SelectSheet open={showPartySheet} onClose={() => setShowPartySheet(false)} title="Select Party"
-        options={parties.map(p => ({ value: p.id, label: p.name, sublabel: p.phone }))}
-        onSelect={(v) => setPartyId(v)} searchable />
+      <SelectSheet open={showPartySheet} onClose={() => setShowPartySheet(false)} title={type === 'PURCHASE' ? 'Select Supplier' : 'Select Customer'}
+        options={parties.map(p => {
+          const bal = partyBalances.get(p.id) || 0
+          const balText = bal > 0 ? ` • Bal: ${formatCurrency(bal)} (To Receive)` : bal < 0 ? ` • Bal: ${formatCurrency(Math.abs(bal))} (To Pay)` : ` • Bal: ₹0`
+          return {
+            value: p.id,
+            label: p.name,
+            sublabel: `${p.phone ? p.phone : 'No Phone'}${balText}`,
+          }
+        })}
+        onSelect={(v) => setPartyId(v)} searchable onAddNew={handleAddNewPartyPrompt} />
+
+      {/* Inline Fast Add New Customer / Supplier Modal */}
+      {showAddPartyModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.5)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: 20, width: '100%', maxWidth: 400, ...Shadows.lg }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ fontSize: 16, fontWeight: 900, color: Colors.textPrimary }}>
+                + Add New {type === 'PURCHASE' ? 'Supplier' : 'Customer'}
+              </div>
+              <button onClick={() => setShowAddPartyModal(false)} style={{ background: 'none', border: 'none', color: Colors.textMuted, cursor: 'pointer' }}>
+                <Icons.Close size={20} />
+              </button>
+            </div>
+
+            <Field label={`${type === 'PURCHASE' ? 'Supplier' : 'Customer'} Name`} required>
+              <input
+                autoFocus
+                type="text"
+                value={newPartyName}
+                onChange={e => setNewPartyName(e.target.value)}
+                placeholder="Enter full name"
+                style={s.input}
+              />
+            </Field>
+
+            <Field label="Mobile / Phone Number">
+              <input
+                type="tel"
+                value={newPartyPhone}
+                onChange={e => setNewPartyPhone(e.target.value)}
+                placeholder="e.g. 9876543210"
+                style={s.input}
+              />
+            </Field>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <button onClick={() => setShowAddPartyModal(false)} style={{ ...s.outlineBtn, flex: 1 }}>
+                Cancel
+              </button>
+              <button onClick={handleSaveNewParty} style={{ ...s.primaryBtn, flex: 1 }}>
+                Save & Select
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: Spacing.sm }}>
         <Field label="Date"><input type="date" value={date} onChange={e => setDate(e.target.value)} style={s.input} /></Field>
@@ -328,53 +508,125 @@ export function Billing({ editId, initialType, onBack, onNavigate }: { editId?: 
         </div>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.sm }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: Colors.textPrimary }}>Items ({lines.length})</span>
-        <button onClick={() => setShowPicker(!showPicker)} style={{ padding: '8px 14px', backgroundColor: Colors.primary, color: '#fff', border: 'none', borderRadius: BorderRadius.md, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Icons.Add size={16} /> Add Product
-        </button>
-      </div>
+      {/* Big Prominent + Add Product Button */}
+      <button onClick={() => setShowPicker(true)} style={{
+        width: '100%', height: 50, borderRadius: BorderRadius.md,
+        backgroundColor: Colors.primary, color: '#fff', border: 'none',
+        fontSize: 15, fontWeight: 900, cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        boxShadow: '0 4px 12px rgba(13, 148, 136, 0.3)', marginBottom: 16, marginTop: 10,
+      }}>
+        <Icons.Add size={22} color="#fff" /> Add Product / Item (Fast Search)
+      </button>
 
+      {/* Centered Fast Product Selection Modal */}
       {showPicker && (
-        <div style={{ ...s.card, marginBottom: Spacing.md, padding: Spacing.sm, borderColor: Colors.primary }}>
-          <input ref={searchRef} value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, SKU or barcode..." style={{ ...s.input, width: '100%', marginBottom: Spacing.sm, fontSize: 14 }} />
-          <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {filteredItems.length === 0 ? (
-              <div style={{ padding: Spacing.md, textAlign: 'center', color: Colors.textDisabled, fontSize: 12 }}>No products found</div>
-            ) : filteredItems.map(i => (
-              <button key={i.id} onClick={() => addLine(i.id)} style={{ display: 'flex', alignItems: 'center', gap: Spacing.sm, padding: '8px 10px', border: 'none', background: 'none', cursor: 'pointer', borderRadius: BorderRadius.sm, textAlign: 'left' }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = Colors.surfaceVariant)}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: Colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: Colors.primary, fontWeight: 700 }}>{i.name[0]}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: Colors.textPrimary, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    {i.name}
-                    {i.brand && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4, backgroundColor: Colors.primaryLight, color: Colors.primary }}>{i.brand}</span>}
-                    {recentMap.has(i.id) && <span style={{ fontSize: 9, fontWeight: 700, color: Colors.accent, backgroundColor: Colors.accent + '15', padding: '1px 6px', borderRadius: 4 }}>Recent</span>}
-                  </div>
-                  <div style={{ fontSize: 11, color: Colors.textSecondary }}>
-                    {i.sku} · Stock: {i.currentStock} {i.unit}{i.rackLocation ? ` · Rack: ${i.rackLocation}` : ''}{i.expDate ? ` · Exp: ${i.expDate}` : ''}
-                  </div>
-                  {recentMap.has(i.id) && <div style={{ fontSize: 10, color: Colors.accent, marginTop: 1 }}>Last: {recentMap.get(i.id)?.qty} × {formatCurrency(safeNum(recentMap.get(i.id)?.rate || '0'))}</div>}
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  {type === 'PURCHASE' ? (
-                    <div style={{ fontSize: 13, fontWeight: 600, color: Colors.textPrimary }}>{i.purchasePrice ? formatCurrency(i.purchasePrice) : '–'}</div>
-                  ) : (
-                    <div style={{ fontSize: 13, fontWeight: 600, color: Colors.textPrimary }}>{formatCurrency(i.sellingPrice)}</div>
-                  )}
-                  {i.mrp && i.mrp > i.sellingPrice && type !== 'PURCHASE' && <div style={{ fontSize: 11, color: Colors.textSecondary, textDecoration: 'line-through' }}>{formatCurrency(i.mrp)}</div>}
-                </div>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.55)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: 18, width: '100%', maxWidth: 460, maxHeight: '80vh', display: 'flex', flexDirection: 'column', ...Shadows.lg }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ fontSize: 16, fontWeight: 900, color: Colors.textPrimary }}>
+                Add Products to {type === 'PURCHASE' ? 'Bill' : 'Invoice'}
+              </div>
+              <button onClick={() => { setShowPicker(false); setSearch('') }} style={{ background: 'none', border: 'none', color: Colors.textMuted, cursor: 'pointer' }}>
+                <Icons.Close size={20} />
               </button>
-            ))}
+            </div>
+
+            <input
+              ref={searchRef}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search product name, SKU or barcode..."
+              style={{ ...s.input, width: '100%', marginBottom: 12, fontSize: 14, padding: '10px 14px' }}
+            />
+
+            {/* Instant Add New Product Button if search text typed and not matched */}
+            {search.trim().length > 0 && !filteredItems.some(i => i.name.toLowerCase() === search.trim().toLowerCase()) && (
+              <button onClick={() => handleAddNewItemPrompt(search.trim())} style={{
+                display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px',
+                backgroundColor: Colors.primaryLight, border: `1px solid ${Colors.primaryLight}`, borderRadius: BorderRadius.sm,
+                fontSize: 13, fontWeight: 800, color: Colors.primary, cursor: 'pointer', marginBottom: 10, textAlign: 'left',
+              }}>
+                <span style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: Colors.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>+</span>
+                Add "{search.trim()}" as New Product
+              </button>
+            )}
+
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {filteredItems.length === 0 ? (
+                <div style={{ padding: '24px 16px', textAlign: 'center', color: Colors.textDisabled, fontSize: 13 }}>
+                  No products matched "{search}"
+                </div>
+              ) : filteredItems.map(i => (
+                <div key={i.id} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '10px 12px', border: `1px solid ${Colors.border}`, borderRadius: BorderRadius.sm,
+                  backgroundColor: Colors.surface,
+                }}>
+                  <div style={{ flex: 1, paddingRight: 10 }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: Colors.textPrimary }}>
+                      {i.name}
+                    </div>
+                    <div style={{ fontSize: 11, color: Colors.textSecondary, marginTop: 2 }}>
+                      Stock: <strong>{i.currentStock} {i.unit}</strong> • Rate: <strong>{formatCurrency(type === 'PURCHASE' ? (i.purchasePrice || 0) : i.sellingPrice)}</strong>
+                    </div>
+                  </div>
+                  <button onClick={() => addLine(i.id)} style={{
+                    padding: '6px 14px', backgroundColor: Colors.primary, color: '#fff', border: 'none',
+                    borderRadius: BorderRadius.sm, fontSize: 12, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap',
+                  }}>
+                    + Add
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${Colors.divider}`, textAlign: 'right' }}>
+              <button onClick={() => { setShowPicker(false); setSearch('') }} style={{ ...s.primaryBtn, width: 'auto', padding: '8px 20px' }}>
+                Done ({lines.length} added)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inline Fast Add New Product Modal */}
+      {showAddItemModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: 20, width: '100%', maxWidth: 400, ...Shadows.lg }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ fontSize: 16, fontWeight: 900, color: Colors.textPrimary }}>
+                + Add New Product
+              </div>
+              <button onClick={() => setShowAddItemModal(false)} style={{ background: 'none', border: 'none', color: Colors.textMuted, cursor: 'pointer' }}>
+                <Icons.Close size={20} />
+              </button>
+            </div>
+
+            <Field label="Product Name" required>
+              <input autoFocus value={newItemName} onChange={e => setNewItemName(e.target.value)} style={s.input} />
+            </Field>
+
+            <Field label="Selling Price (₹)" required>
+              <input type="number" value={newItemPrice} onChange={e => setNewItemPrice(e.target.value)} placeholder="0.00" style={s.input} />
+            </Field>
+
+            <Field label="Opening Stock Quantity">
+              <input type="number" value={newItemStock} onChange={e => setNewItemStock(e.target.value)} placeholder="10" style={s.input} />
+            </Field>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <button onClick={() => setShowAddItemModal(false)} style={{ ...s.outlineBtn, flex: 1 }}>Cancel</button>
+              <button onClick={handleSaveNewItem} style={{ ...s.primaryBtn, flex: 1 }}>Save & Add</button>
+            </div>
           </div>
         </div>
       )}
 
       {lines.length === 0 && !showPicker && (
-        <div style={{ textAlign: 'center', padding: '40px 16px', color: Colors.textDisabled }}>
+        <div style={{ textAlign: 'center', padding: '30px 16px', color: Colors.textDisabled }}>
           <Icons.Add size={40} style={{ marginBottom: Spacing.sm, opacity: 0.4 }} />
-          <div style={{ fontSize: 14 }}>Tap "Add Product" to add items</div>
+          <div style={{ fontSize: 14 }}>Tap "Add Product" above to start adding items</div>
         </div>
       )}
 

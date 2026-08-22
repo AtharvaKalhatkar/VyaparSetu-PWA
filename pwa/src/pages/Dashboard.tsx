@@ -66,43 +66,8 @@ export function Dashboard({ userName, onNavigate }: { userName: string; onNaviga
         borderBottom: `1px solid ${Colors.border}`,
         boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
       }}>
-        {/* Profile Setup Banner if Missing Details */}
-        {(!profile.businessName || profile.businessName === 'My Business' || !profile.phone) && (
-          <div style={{
-            backgroundColor: Colors.primarySurface,
-            border: `1px solid ${Colors.primaryLight}`,
-            borderRadius: BorderRadius.md,
-            padding: 12,
-            marginBottom: 14,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 10,
-          }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: Colors.primary, display: 'flex', alignItems: 'center', gap: 6 }}>
-                ⚙️ Set Up Business Profile
-              </div>
-              <div style={{ fontSize: 11, color: Colors.textSecondary, marginTop: 2 }}>Add GSTIN, phone & bank account</div>
-            </div>
-            <button onClick={() => onNavigate('business-profile')} style={{
-              padding: '6px 12px',
-              backgroundColor: Colors.primary,
-              color: '#fff',
-              border: 'none',
-              borderRadius: BorderRadius.sm,
-              fontSize: 11,
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}>
-              Setup ➔
-            </button>
-          </div>
-        )}
-
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div onClick={() => onNavigate('business-profile')} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
             <div style={{
               width: 44,
               height: 44,
@@ -120,30 +85,26 @@ export function Dashboard({ userName, onNavigate }: { userName: string; onNaviga
             </div>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, color: Colors.textSecondary }}>{greeting()}</div>
-              <div style={{ fontSize: 16, fontWeight: 900, color: Colors.textPrimary, lineHeight: 1.2 }}>
+              <div style={{ fontSize: 17, fontWeight: 900, color: Colors.textPrimary, lineHeight: 1.2 }}>
                 {profile.ownerName || userName || 'Store Owner'}
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: Colors.primary, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Icons.Building size={12} color={Colors.primary} /> {profile.businessName || 'My Business'}
               </div>
             </div>
           </div>
 
-          <button onClick={() => onNavigate('billing')} style={{
-            padding: '10px 14px',
-            borderRadius: BorderRadius.md,
-            backgroundColor: Colors.primary,
-            color: '#fff',
-            border: 'none',
-            fontSize: 13,
-            fontWeight: 800,
+          <button onClick={() => onNavigate('business-profile')} title="View & Edit Profile" style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: Colors.surfaceVariant,
+            color: Colors.primary,
+            border: `1px solid ${Colors.border}`,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: 6,
-            boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)',
+            justifyContent: 'center',
+            boxShadow: '0 1px 3px rgba(15,23,42,0.04)',
           }}>
-            <Icons.Add size={16} color="#fff" /> + Sale
+            <Icons.People size={20} color={Colors.primary} />
           </button>
         </div>
       </div>
@@ -249,7 +210,7 @@ export function Dashboard({ userName, onNavigate }: { userName: string; onNaviga
               <div style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primarySurface, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Icons.Invoice size={20} color={Colors.primary} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: Colors.textPrimary }}>+ Sale</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: Colors.textPrimary }}>Sale</span>
             </button>
 
             <button onClick={() => onNavigate('purchase')} style={{
@@ -260,7 +221,7 @@ export function Dashboard({ userName, onNavigate }: { userName: string; onNaviga
               <div style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.warningBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Icons.Truck size={20} color={Colors.warning} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: Colors.textPrimary }}>+ Purchase</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: Colors.textPrimary }}>Purchase</span>
             </button>
 
             <button onClick={() => onNavigate('collections')} style={{
@@ -282,7 +243,7 @@ export function Dashboard({ userName, onNavigate }: { userName: string; onNaviga
               <div style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.infoBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Icons.Inventory size={20} color={Colors.info} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: Colors.textPrimary }}>+ Item</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: Colors.textPrimary }}>Item</span>
             </button>
 
           </div>
@@ -378,7 +339,7 @@ export function Dashboard({ userName, onNavigate }: { userName: string; onNaviga
 
           {recentTransactions.length === 0 ? (
             <div style={{ fontSize: 12, color: Colors.textMuted, textAlign: 'center', padding: '16px 0' }}>
-              No transactions recorded yet. Tap <strong>+ Sale</strong> to create your first invoice!
+              No transactions recorded yet. Tap <strong>Sale</strong> to create your first invoice!
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -401,7 +362,7 @@ export function Dashboard({ userName, onNavigate }: { userName: string; onNaviga
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: 14, fontWeight: 800, flexShrink: 0,
                       }}>
-                        {isSale ? '📈' : '🚚'}
+                        {isSale ? '📄' : '🧾'}
                       </div>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 800, color: Colors.textPrimary }}>

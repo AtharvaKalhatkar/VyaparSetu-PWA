@@ -6,6 +6,8 @@ import { Icons } from '../utils/Icons'
 import { ALL_VERTICALS } from '../verticals'
 import type { BusinessType } from '../verticals/types'
 
+import { SignatureModal } from '../components/SignatureModal'
+
 export function BusinessProfile({ onBack, onNavigate }: { onBack: () => void; onNavigate?: (p: string) => void }) {
   const profile = DB.businessProfile.get()
   const businessId = profile.businessId || localStorage.getItem('vs_business_id') || 'VS-682914'
@@ -22,6 +24,8 @@ export function BusinessProfile({ onBack, onNavigate }: { onBack: () => void; on
   const [bankAccount, setBankAccount] = useState(profile.bankAccount)
   const [bankIfsc, setBankIfsc] = useState(profile.bankIfsc)
   const [upiId, setUpiId] = useState(profile.upiId || '')
+  const [signature, setSignature] = useState(profile.signature || '')
+  const [showSignModal, setShowSignModal] = useState(false)
 
   // Password fields
   const [currentPassword, setCurrentPassword] = useState('')
@@ -52,7 +56,7 @@ export function BusinessProfile({ onBack, onNavigate }: { onBack: () => void; on
     DB.businessProfile.save({
       ...profile,
       businessName: name, ownerName: owner, phone, email, address, gstin, pan,
-      bankName, bankAccount, bankIfsc, upiId: upiId.trim(), signature: profile.signature,
+      bankName, bankAccount, bankIfsc, upiId: upiId.trim(), signature,
       businessType, businessId,
     })
     setSaved(true)
@@ -149,6 +153,57 @@ export function BusinessProfile({ onBack, onNavigate }: { onBack: () => void; on
       <Field label="Bank Name"><input value={bankName} onChange={e => setBankName(e.target.value)} placeholder="Bank name" style={s.input} /></Field>
       <Field label="Account Number"><input value={bankAccount} onChange={e => setBankAccount(e.target.value)} placeholder="Account number" style={s.input} /></Field>
       <Field label="IFSC Code"><input value={bankIfsc} onChange={e => setBankIfsc(e.target.value)} placeholder="IFSC code" style={s.input} /></Field>
+
+      {/* ✍️ Digital Signature Section */}
+      <div style={{ fontSize: 12, fontWeight: 700, color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginTop: Spacing.lg, marginBottom: Spacing.md }}>
+        Digital Authorized Signature
+      </div>
+      <div style={{
+        backgroundColor: Colors.surfaceVariant, border: `1.5px dashed ${Colors.border}`,
+        borderRadius: BorderRadius.md, padding: 16, textAlign: 'center', marginBottom: Spacing.md,
+      }}>
+        {signature ? (
+          <div>
+            <div style={{ backgroundColor: '#fff', padding: 10, borderRadius: BorderRadius.sm, border: `1px solid ${Colors.border}`, display: 'inline-block', marginBottom: 12 }}>
+              <img src={signature} alt="Authorized Signature" style={{ maxHeight: 70, maxWidth: '100%', objectFit: 'contain' }} />
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button onClick={() => setShowSignModal(true)} style={{
+                padding: '8px 14px', backgroundColor: Colors.primary, color: '#fff', border: 'none',
+                borderRadius: BorderRadius.sm, fontSize: 12, fontWeight: 800, cursor: 'pointer',
+              }}>
+                ✍️ Re-Draw / Edit Signature
+              </button>
+              <button onClick={() => setSignature('')} style={{
+                padding: '8px 14px', backgroundColor: Colors.dangerBg, color: Colors.danger,
+                border: `1px solid ${Colors.danger}30`, borderRadius: BorderRadius.sm, fontSize: 12, fontWeight: 800, cursor: 'pointer',
+              }}>
+                🗑️ Delete Signature
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div style={{ fontSize: 13, color: Colors.textSecondary, marginBottom: 12 }}>
+              No digital signature added yet. Add your signature to automatically embed it on sale invoices.
+            </div>
+            <button onClick={() => setShowSignModal(true)} style={{
+              padding: '10px 20px', backgroundColor: Colors.primary, color: '#fff', border: 'none',
+              borderRadius: BorderRadius.sm, fontSize: 13, fontWeight: 900, cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(13,148,136,0.3)',
+            }}>
+              ✍️ Draw Digital Signature
+            </button>
+          </div>
+        )}
+      </div>
+
+      <SignatureModal
+        open={showSignModal}
+        onClose={() => setShowSignModal(false)}
+        onSave={(dataUrl) => setSignature(dataUrl)}
+        initialSignature={signature}
+      />
 
       <button onClick={handleSave} style={{ ...s.primaryBtn, marginTop: Spacing.lg, marginBottom: Spacing.xl }}>
         Save Profile Details

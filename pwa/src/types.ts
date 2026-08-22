@@ -50,6 +50,7 @@ export interface Invoice {
   shippingAddress?: string; transportDetails?: string
   additionalCharges?: number; roundOff?: number
   gstr2Matched?: boolean
+  isGstInvoice?: boolean
 }
 
 export interface LedgerEntry {
@@ -78,13 +79,25 @@ export interface Unit {
 export type InvoiceTemplate = 'STANDARD' | 'COMPACT' | 'DETAILED' | 'CLASSIC' | 'MODERN' | 'PREMIUM' | 'ELEGANT' | 'BOLD' | 'NATURE' | 'OCEAN' | 'SUNSET' | 'CORPORATE' | 'DOTTED'
 
 export interface InvoiceSettings {
-  prefix: string; template: InvoiceTemplate
-  defaultTerms: string; enableGst: boolean
-  themeColor: string; showLogo: boolean; showBank: boolean
-  showSignature: boolean; paperSize: string
-  currency: string; currencySymbol: string
-  roundOff: boolean; lateFeePercent: number
+  prefix?: string; template?: InvoiceTemplate
+  defaultTerms?: string; enableGst?: boolean
+  themeColor?: string; showLogo?: boolean; showBank?: boolean; showBankDetails?: boolean
+  showSignature?: boolean; paperSize?: string
+  currency?: string; currencySymbol?: string
+  roundOff?: boolean; lateFeePercent?: number
   allowNegativeStock?: boolean
+  defaultTemplate?: string
+  termsAndConditions?: string
+  invoicePrefix?: string
+  roundOffTotal?: boolean
+  defaultCreditDays?: number
+  defaultGstRate?: number
+  gstScheme?: string
+  enableTds?: boolean
+  enforceCreditLimit?: boolean
+  enableBarcodes?: boolean
+  enableBatchExpiry?: boolean
+  lowStockAlertLevel?: number
 }
 
 export interface CrmLead {

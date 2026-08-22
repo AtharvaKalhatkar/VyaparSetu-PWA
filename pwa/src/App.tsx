@@ -3,7 +3,7 @@ import { Colors, Spacing } from './theme'
 import { useAuth } from './store/auth'
 import { DB } from './utils/storage'
 import { seedData } from './utils/seed'
-import { Header, TabBar, Drawer, Sidebar, PAGE_TITLES } from './pages/Layout'
+import { Header, TabBar, Drawer, Sidebar, PAGE_TITLES, MoreMenu } from './pages/Layout'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { ToastProvider } from './utils/smooth'
@@ -218,6 +218,8 @@ export default function App() {
       case 'gst-reports': return <GstReports onNavigate={navigate} />
       case 'balance-sheet': return <BalanceSheet />
       case 'bank-accounts': return <BankAccounts />
+      case 'cash-in-hand': return <BankAccounts />
+      case 'cheques': return <AddPayment onBack={goBack} onNavigate={navigate} />
       case 'data-export': return <DataExport />
       case 'barcode-print': return <BarcodePrint onBack={goBack} />
       case 'invoice-view': return <InvoiceView invoiceId={params.id || ''} onNavigate={navigate} autoPrint={params.print === '1'} />
@@ -245,6 +247,7 @@ export default function App() {
       </div>
       case 'settings': return <Settings onNavigate={navigate} onLogout={() => { logout(); setPage('dashboard') }} isDarkMode={darkMode} onToggleDarkMode={toggleDarkMode} />
       case 'party-ledger': return <PartyLedger partyId={params.partyId || ''} onBack={goBack} onNavigate={navigate} />
+      case 'more': return <MoreMenu onNavigate={navigate} />
       default: return <Dashboard userName={userName} onNavigate={navigate} />
     }
   }
@@ -263,11 +266,9 @@ export default function App() {
     <div onClick={e => { const t = (e.target as HTMLElement).closest('[data-haptic]') as HTMLElement; if (t) try { navigator.vibrate?.(parseInt(t.dataset.haptic || '10') || 10) } catch (e) { console.error('vibrate failed', e) } }} style={{ height: '100vh', display: 'flex', backgroundColor: Colors.background }} className={darkMode ? 'vs-dark' : ''}>
       <Sidebar page={page} onNavigate={navigate} companyName={displayBizName} onCompanySwitch={() => setShowCompanySwitcher(true)} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-        <Header title={title} onBack={showBack ? goBack : undefined} onMenuToggle={() => setDrawerOpen(true)}
-          rightAction={<button onClick={() => setShowCompanySwitcher(true)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 700, opacity: 0.95 }}>
-            🏢 {displayBizName} <span style={{ fontSize: 8 }}>▼</span>
-          </button>}
-        />
+        {showBack && (
+          <Header title={title} onBack={goBack} />
+        )}
         <div key={pageKey.current} style={{
           flex: 1, overflow: 'auto',
           animation: navDir === 'forward' ? 'pageIn 0.3s ease-out' : 'pageOut 0.3s ease-out',

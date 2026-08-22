@@ -148,7 +148,7 @@ export function CollectionsPage({ onNavigate }: { onNavigate: (p: string) => voi
       {!selectedPartyId && (
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: Colors.textSecondary, marginBottom: Spacing.sm }}>
-            ⚠️ Customers with Outstanding Dues ({topDueParties.length})
+            Customers with Outstanding Dues ({topDueParties.length})
           </div>
           {topDueParties.length === 0 ? (
             <div style={{ textAlign: 'center', padding: Spacing.huge, color: Colors.textDisabled }}>

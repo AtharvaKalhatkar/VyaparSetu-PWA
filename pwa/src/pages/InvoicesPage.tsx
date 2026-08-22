@@ -37,7 +37,7 @@ function groupLabel(dateStr: string): string {
 export function InvoicesPage({ onNavigate }: { onNavigate: (p: string) => void }) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'ALL' | 'PAID' | 'PENDING' | 'PARTIAL'>('ALL')
-  const [typeFilter, setTypeFilter] = useState<'ALL' | 'SALE' | 'PURCHASE'>('ALL')
+  const [typeFilter, setTypeFilter] = useState<'SALE' | 'PURCHASE'>('SALE')
   const [dateFilter, setDateFilter] = useState('')
   const [batchMode, setBatchMode] = useState(false)
   const [rev, bumpRev] = useReducer(x => x + 1, 0)
@@ -53,8 +53,7 @@ export function InvoicesPage({ onNavigate }: { onNavigate: (p: string) => void }
   [rev])
 
   const statusFiltered = useMemo(() => {
-    let list = allInvoices
-    if (typeFilter !== 'ALL') list = list.filter(i => i.type === typeFilter || i.docType === typeFilter)
+    let list = allInvoices.filter(i => i.type === typeFilter || i.docType === typeFilter)
     if (filter !== 'ALL') list = list.filter(i => i.paymentStatus === filter)
     if (dateFilter) list = list.filter(i => i.date === dateFilter)
     return list
@@ -189,9 +188,8 @@ export function InvoicesPage({ onNavigate }: { onNavigate: (p: string) => void }
         />
       </div>
 
-      {/* Type Filter Bar (Sales vs Purchase) */}
+      {/* Type Filter Bar (Sales vs Purchase strictly) */}
       <div style={s.toggleGroup}>
-        <button onClick={() => setTypeFilter('ALL')} style={s.toggle(typeFilter === 'ALL', Colors.primary)}>All Invoices</button>
         <button onClick={() => setTypeFilter('SALE')} style={s.toggle(typeFilter === 'SALE', Colors.primary)}>Sale Invoices</button>
         <button onClick={() => setTypeFilter('PURCHASE')} style={s.toggle(typeFilter === 'PURCHASE', Colors.warning)}>Purchase Invoices</button>
       </div>

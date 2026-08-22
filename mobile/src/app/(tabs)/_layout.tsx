@@ -63,10 +63,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="more"
+        name="Menu"
         options={{
-          title: 'More',
-          tabBarLabel: 'More',
+          title: 'Menu',
+          tabBarLabel: 'Menu',
           tabBarIcon: ({ color, size }) => (
             <Icon name="dots-horizontal" size={size} color={color} />
           ),

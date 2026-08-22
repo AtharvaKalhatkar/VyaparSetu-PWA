@@ -194,7 +194,7 @@ export function PartyLedger({ partyId, onBack, onNavigate }: { partyId: string; 
 
       {filtered.length > 0 && (
         <div style={{ marginTop: Spacing.lg, borderTop: `2px solid ${Colors.primary}`, paddingTop: Spacing.md }}>
-          <div style={{ ...s.spaceBetween, fontSize: 13, color: Colors.textSecondary }}><span>Total Debit (Sales + Purchases)</span><span style={{ fontWeight: 600, color: Colors.textPrimary }}>{formatCurrency(totals.debit)}</span></div>
+          <div style={{ ...s.spaceBetween, fontSize: 13, color: Colors.textSecondary }}><span>Total Debit (Sales Purchases)</span><span style={{ fontWeight: 600, color: Colors.textPrimary }}>{formatCurrency(totals.debit)}</span></div>
           <div style={{ ...s.spaceBetween, fontSize: 13, color: Colors.textSecondary, marginTop: 4 }}><span>Total Credit (Receipts + Payments)</span><span style={{ fontWeight: 600, color: Colors.textPrimary }}>{formatCurrency(totals.credit)}</span></div>
           <div style={{ ...s.spaceBetween, marginTop: Spacing.sm, fontSize: 15, fontWeight: 700, color: Colors.textPrimary, borderTop: `1px solid ${Colors.border}`, paddingTop: Spacing.sm }}>
             <span>Closing Balance</span>
